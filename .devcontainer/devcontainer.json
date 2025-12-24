@@ -1,0 +1,17 @@
+{
+  "name": "Python with uv",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {},
+    "ghcr.io/jsburckhardt/devcontainer-features/uv:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  "mounts": [
+    "source=${localEnv:HOME}/.claude,target=/home/vscode/.claude,type=bind",
+    "source=${localEnv:HOME}/Projects,target=/projects,type=bind,readonly"
+  ],
+  "containerEnv": {
+    "GITHUB_TOKEN": "${localEnv:RUBBER_DUCK_GH_TOKEN}"
+  },
+  "postCreateCommand": "npm install -g @anthropic-ai/claude-code"
+}
