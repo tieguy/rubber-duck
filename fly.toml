@@ -1,0 +1,23 @@
+# Fly.io configuration for Rubber Duck
+# See https://fly.io/docs/reference/configuration/
+
+app = "rubber-duck"
+primary_region = "sfo"
+
+[env]
+  TZ = "America/Los_Angeles"
+
+[build]
+  dockerfile = "Dockerfile"
+
+# No HTTP service - this is a Discord bot, not a web server
+# The bot connects outbound to Discord, no inbound ports needed
+
+[[vm]]
+  memory = "256mb"
+  cpu_kind = "shared"
+  cpus = 1
+
+# Keep the bot running
+[processes]
+  app = "uv run python -m rubber_duck"

@@ -1,0 +1,38 @@
+[project]
+name = "rubber-duck"
+version = "0.1.0"
+description = "A Discord bot that nudges you with context-aware prompts and remembers everything"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [
+    { name = "Luis Villa", email = "luis@lu.is" }
+]
+
+dependencies = [
+    "discord.py>=2.3.0",
+    "claude-agent-sdk>=0.1.0",
+    "apscheduler>=3.10.0",
+    "letta-client>=1.6.0",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.1.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/rubber_duck"]
