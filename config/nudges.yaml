@@ -1,0 +1,23 @@
+# Rubber Duck Nudge Configuration
+#
+# Each nudge has:
+#   - name: Identifier for this nudge (used in logs and scheduling)
+#   - schedule: Time to send (HH:MM in local timezone)
+#   - context_query: Todoist filter to find relevant tasks
+#   - prompt_hint: Guidance for the LLM about this nudge's focus
+
+nudges:
+  - name: exercise
+    schedule: "15:00"
+    context_query: "@exercise OR #health"
+    prompt_hint: "Focus on movement, energy, breaking from work. Encourage physical activity."
+
+  - name: asa
+    schedule: "17:00"
+    context_query: "@asa"
+    prompt_hint: "Father-son connection. His current interests, school, Scouts. Quality time."
+
+  - name: krissa
+    schedule: "20:00"
+    context_query: "@krissa"
+    prompt_hint: "Partnership and shared planning. Appreciation. Discuss upcoming plans."

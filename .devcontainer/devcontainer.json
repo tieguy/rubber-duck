@@ -1,17 +1,20 @@
 {
   "name": "Python with uv",
   "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+  "remoteUser": "vscode",
+  "runArgs": ["--name", "rubber-duck-container"],
   "features": {
     "ghcr.io/devcontainers/features/node:1": {},
     "ghcr.io/jsburckhardt/devcontainer-features/uv:1": {},
-    "ghcr.io/devcontainers/features/github-cli:1": {}
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/meaningful-ooo/devcontainer-features/homebrew:2": {}
   },
   "mounts": [
-    "source=${localEnv:HOME}/.claude,target=/home/vscode/.claude,type=bind",
+    "source=${localEnv:HOME}/.claude/.credentials.json,target=/home/vscode/.claude/.credentials.json,type=bind,readonly",
     "source=${localEnv:HOME}/Projects,target=/projects,type=bind,readonly"
   ],
   "containerEnv": {
     "GITHUB_TOKEN": "${localEnv:RUBBER_DUCK_GH_TOKEN}"
   },
-  "postCreateCommand": "npm install -g @anthropic-ai/claude-code"
+  "postCreateCommand": "sudo chown vscode:vscode ~/.claude && brew install steveyegge/beads/bd && npm install -g @anthropic-ai/claude-code"
 }
