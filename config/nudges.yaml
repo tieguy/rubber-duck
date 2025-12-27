@@ -9,15 +9,15 @@
 nudges:
   - name: exercise
     schedule: "15:00"
-    context_query: "@exercise OR #health"
-    prompt_hint: "Focus on movement, energy, breaking from work. Encourage physical activity."
+    context_query: ""
+    prompt_hint: "Remind to check Future.co app for today's workout. Focus on movement, energy, breaking from work."
 
   - name: asa
     schedule: "17:00"
-    context_query: "@asa"
+    context_query: "@asa | #Asa"
     prompt_hint: "Father-son connection. His current interests, school, Scouts. Quality time."
 
   - name: krissa
     schedule: "20:00"
-    context_query: "@krissa"
+    context_query: "@krissa | @family | #Krissa"
     prompt_hint: "Partnership and shared planning. Appreciation. Discuss upcoming plans."
