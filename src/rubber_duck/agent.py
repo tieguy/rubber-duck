@@ -1,16 +1,14 @@
-"""Claude Agent SDK wrapper for Rubber Duck."""
+"""Agent module for Rubber Duck - orchestrates memory and tasks."""
 
 import logging
-import os
+
+from rubber_duck.integrations import todoist, memory
 
 logger = logging.getLogger(__name__)
 
-# TODO: Integrate with Letta for memory
-# TODO: Integrate with Todoist MCP for task queries
-
 
 async def generate_nudge_content(nudge_config: dict) -> str:
-    """Generate nudge content using Claude Agent SDK.
+    """Generate nudge content using Letta + Todoist.
 
     Args:
         nudge_config: Configuration containing:
@@ -25,17 +23,24 @@ async def generate_nudge_content(nudge_config: dict) -> str:
     context_query = nudge_config.get("context_query", "")
     prompt_hint = nudge_config.get("prompt_hint", "")
 
-    # For MVP, return a placeholder that shows the system is working
-    # TODO: Replace with actual Claude Agent SDK call with MCP tools
     logger.info(f"Generating nudge content for '{name}'")
 
-    # Placeholder response - will be replaced with actual agent call
-    return (
-        f"**{name.title()} Nudge**\n\n"
-        f"_This is a placeholder nudge. Agent integration coming soon._\n\n"
-        f"Context: {context_query}\n"
-        f"Focus: {prompt_hint}"
-    )
+    # Fetch relevant tasks from Todoist
+    tasks = []
+    if context_query:
+        tasks = await todoist.get_tasks_by_filter(context_query)
+
+    # Format tasks as context
+    if tasks:
+        tasks_context = "\n".join(
+            f"- {t['content']}" + (f" (due: {t['due']})" if t['due'] else "")
+            for t in tasks
+        )
+    else:
+        tasks_context = ""
+
+    # Generate nudge via Letta
+    return await memory.generate_nudge(name, prompt_hint, tasks_context)
 
 
 async def process_user_message(message: str, context: dict | None = None) -> str:
@@ -48,16 +53,18 @@ async def process_user_message(message: str, context: dict | None = None) -> str
     Returns:
         Response message string
     """
-    # TODO: Implement full agent processing with:
-    # 1. Check if this is a task capture ("I need to X")
-    # 2. Query Letta for relevant memory
-    # 3. Use Claude Agent SDK to process and respond
-    # 4. Update Letta memory with this exchange
-
     logger.info(f"Processing user message: {message[:50]}...")
 
-    # Placeholder - echo back for now
-    return (
-        f"I heard you say: _{message}_\n\n"
-        "_Agent processing coming soon. For now I'm just echoing._"
-    )
+    # Check if this looks like a task capture
+    task_keywords = ["i need to", "remind me to", "add task", "todo:"]
+    is_task_capture = any(kw in message.lower() for kw in task_keywords)
+
+    if is_task_capture:
+        # For now, just acknowledge - full task creation comes later
+        return await memory.send_message(
+            message,
+            context="User may be trying to capture a task."
+        )
+
+    # Regular conversation
+    return await memory.send_message(message)
