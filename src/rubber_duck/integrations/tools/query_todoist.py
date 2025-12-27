@@ -23,6 +23,25 @@ def query_todoist(filter_query: str) -> str:
         return "Todoist is not configured. Cannot query tasks."
 
     try:
+        # Get projects first for names and hierarchy
+        proj_resp = requests.get(
+            "https://api.todoist.com/rest/v2/projects",
+            headers={"Authorization": f"Bearer {api_key}"}
+        )
+        proj_resp.raise_for_status()
+        projects = proj_resp.json()
+        proj_by_id = {p["id"]: p for p in projects}
+
+        def get_project_path(pid):
+            """Get full project path like 'Parent > Child'."""
+            if not pid or pid not in proj_by_id:
+                return "Inbox"
+            proj = proj_by_id[pid]
+            parent_id = proj.get("parent_id")
+            if parent_id and parent_id in proj_by_id:
+                return f"{proj_by_id[parent_id]['name']} > {proj['name']}"
+            return proj["name"]
+
         response = requests.get(
             "https://api.todoist.com/rest/v2/tasks",
             headers={"Authorization": f"Bearer {api_key}"},
@@ -37,14 +56,15 @@ def query_todoist(filter_query: str) -> str:
         # Format tasks with IDs for update/complete operations
         lines = [f"Found {len(tasks)} task(s):"]
         for task in tasks[:20]:  # Limit to 20
+            project_path = get_project_path(task.get("project_id"))
             due = ""
             if task.get("due"):
                 due = f" (due: {task['due'].get('string', task['due'].get('date', ''))})"
             labels = ""
             if task.get("labels"):
                 labels = f" [{', '.join(task['labels'])}]"
-            # Include task ID so it can be used for updates
-            lines.append(f"- [ID:{task['id']}] {task['content']}{due}{labels}")
+            # Include task ID and project so it can be used for updates
+            lines.append(f"- [{project_path}] [ID:{task['id']}] {task['content']}{due}{labels}")
 
         if len(tasks) > 20:
             lines.append(f"... and {len(tasks) - 20} more")

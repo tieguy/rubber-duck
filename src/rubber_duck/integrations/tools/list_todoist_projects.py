@@ -41,17 +41,23 @@ def list_todoist_projects() -> str:
         proj_by_id = {p["id"]: p for p in projects}
         roots = [p for p in projects if not p.get("parent_id")]
 
-        def format_project(proj, indent=0):
+        def format_project(proj, indent=0, parent_name=None):
             pid = proj["id"]
             count = task_counts.get(pid, 0)
             prefix = "  " * indent
-            line = f"{prefix}- [ID:{pid}] {proj['name']} ({count} tasks)"
+            # Show hierarchy path for sub-projects
+            if parent_name:
+                path_info = f" (sub-project of {parent_name})"
+            else:
+                path_info = ""
+            line = f"{prefix}- [ID:{pid}] {proj['name']}{path_info} ({count} tasks)"
             children = [p for p in projects if p.get("parent_id") == pid]
-            child_lines = [format_project(c, indent + 1) for c in children]
+            child_lines = [format_project(c, indent + 1, proj['name']) for c in children]
             return "\n".join([line] + child_lines)
 
         lines = [format_project(r) for r in roots]
-        return f"Projects:\n" + "\n".join(lines)
+        result = "Projects (indented = sub-project):\n" + "\n".join(lines)
+        return result
 
     except Exception as e:
         return f"Error listing projects: {str(e)}"
