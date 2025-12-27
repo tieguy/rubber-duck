@@ -53,9 +53,27 @@ def query_todoist(filter_query: str) -> str:
         if not tasks:
             return f"No tasks found matching '{filter_query}'."
 
-        # Format tasks with IDs for update/complete operations
-        lines = [f"Found {len(tasks)} task(s):"]
-        for task in tasks[:20]:  # Limit to 20
+        # Build task hierarchy map
+        tasks_by_id = {t["id"]: t for t in tasks}
+
+        # Identify parent tasks and subtasks
+        parent_tasks = []
+        subtasks_by_parent = {}
+        orphan_subtasks = []  # Subtasks whose parent isn't in results
+
+        for task in tasks:
+            parent_id = task.get("parent_id")
+            if parent_id:
+                if parent_id in tasks_by_id:
+                    if parent_id not in subtasks_by_parent:
+                        subtasks_by_parent[parent_id] = []
+                    subtasks_by_parent[parent_id].append(task)
+                else:
+                    orphan_subtasks.append(task)
+            else:
+                parent_tasks.append(task)
+
+        def format_task(task, indent=0):
             project_path = get_project_path(task.get("project_id"))
             due = ""
             if task.get("due"):
@@ -63,8 +81,33 @@ def query_todoist(filter_query: str) -> str:
             labels = ""
             if task.get("labels"):
                 labels = f" [{', '.join(task['labels'])}]"
-            # Include task ID and project so it can be used for updates
-            lines.append(f"- [{project_path}] [ID:{task['id']}] {task['content']}{due}{labels}")
+            prefix = "  " * indent
+            subtask_marker = "↳ " if indent > 0 else ""
+            return f"{prefix}- {subtask_marker}[{project_path}] [ID:{task['id']}] {task['content']}{due}{labels}"
+
+        # Format tasks with hierarchy
+        lines = [f"Found {len(tasks)} task(s):"]
+        shown = 0
+
+        for task in parent_tasks:
+            if shown >= 20:
+                break
+            lines.append(format_task(task))
+            shown += 1
+            # Show subtasks indented
+            for subtask in subtasks_by_parent.get(task["id"], []):
+                if shown >= 20:
+                    break
+                lines.append(format_task(subtask, indent=1))
+                shown += 1
+
+        # Show orphan subtasks (parent not in results)
+        for task in orphan_subtasks:
+            if shown >= 20:
+                break
+            parent_id = task.get("parent_id")
+            lines.append(f"- ↳ (subtask) [{get_project_path(task.get('project_id'))}] [ID:{task['id']}] {task['content']}")
+            shown += 1
 
         if len(tasks) > 20:
             lines.append(f"... and {len(tasks) - 20} more")
