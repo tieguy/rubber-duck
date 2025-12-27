@@ -3,6 +3,10 @@
 dev-the-duck.sh
 .worktrees/
 
+# Marvin exports (contain personal data)
+*.jsonl
+category_hierarchy.json
+
 # Python
 __pycache__/
 *.py[cod]
