@@ -14,10 +14,18 @@ primary_region = "lax"
 # The bot connects outbound to Discord, no inbound ports needed
 
 [[vm]]
+  size = "shared-cpu-1x"
   memory = "256mb"
-  cpu_kind = "shared"
-  cpus = 1
 
-# Keep the bot running
+# Only run one instance (Discord bot can't have multiple)
+[deploy]
+  strategy = "immediate"
+
+# Keep the bot running (no auto-stop since there's no HTTP service)
 [processes]
   app = "uv run python -m rubber_duck"
+
+# Restart policy - always restart on failure
+[[restart]]
+  policy = "always"
+  retries = 5
