@@ -56,15 +56,30 @@ async def process_user_message(message: str, context: dict | None = None) -> str
     logger.info(f"Processing user message: {message[:50]}...")
 
     # Check if this looks like a task capture
-    task_keywords = ["i need to", "remind me to", "add task", "todo:"]
-    is_task_capture = any(kw in message.lower() for kw in task_keywords)
+    task_keywords = ["i need to", "remind me to", "add task", "todo:", "don't forget"]
+    message_lower = message.lower()
+    is_task_capture = any(kw in message_lower for kw in task_keywords)
 
     if is_task_capture:
-        # For now, just acknowledge - full task creation comes later
-        return await memory.send_message(
-            message,
-            context="User may be trying to capture a task."
-        )
+        # Extract task content (simple approach - everything after the keyword)
+        task_content = message
+        for kw in task_keywords:
+            if kw in message_lower:
+                idx = message_lower.find(kw) + len(kw)
+                task_content = message[idx:].strip()
+                break
+
+        # Create the task
+        result = await todoist.create_task(content=task_content)
+
+        if result:
+            return f"Got it! I've added to your tasks:\n> {result['content']}\n\n[View in Todoist]({result['url']})"
+        else:
+            # Fall back to memory response if task creation fails
+            return await memory.send_message(
+                message,
+                context="User tried to add a task but Todoist may not be configured."
+            )
 
     # Regular conversation
     return await memory.send_message(message)
