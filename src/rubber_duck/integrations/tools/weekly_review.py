@@ -24,6 +24,10 @@ def run_weekly_review() -> str:
     if not api_key:
         return "Todoist is not configured. Cannot run weekly review."
 
+    # Label sets for categorization
+    BACKBURNER_LABELS = {"someday-maybe", "maybe", "someday", "later", "backburner"}
+    WAITING_LABELS = {"waiting", "waiting-for", "waiting for"}
+
     try:
         # Get projects
         proj_resp = requests.get(
@@ -33,13 +37,32 @@ def run_weekly_review() -> str:
         proj_resp.raise_for_status()
         projects = proj_resp.json()
 
-        # Get all tasks
+        # Get all open tasks
         task_resp = requests.get(
             "https://api.todoist.com/rest/v2/tasks",
             headers={"Authorization": f"Bearer {api_key}"}
         )
         task_resp.raise_for_status()
         all_tasks = task_resp.json()
+
+        # Get completed tasks from last 7 days
+        since = (datetime.now() - timedelta(days=7)).isoformat()
+        completed_resp = requests.post(
+            "https://api.todoist.com/sync/v9/completed/get_all",
+            headers={"Authorization": f"Bearer {api_key}"},
+            json={"since": since, "limit": 200}
+        )
+        completed_resp.raise_for_status()
+        completed_data = completed_resp.json()
+        completed_tasks = completed_data.get("items", [])
+
+        # Group completions by project
+        completions_by_project = {}
+        for task in completed_tasks:
+            pid = task.get("project_id")
+            if pid not in completions_by_project:
+                completions_by_project[pid] = []
+            completions_by_project[pid].append(task)
 
         today = date.today()
 
@@ -98,56 +121,97 @@ def run_weekly_review() -> str:
                 lines.append(f"- {day_name}: [{proj_name}] {task['content']}")
             lines.append("")
 
-        # Project health
+        # Project health using marvin-to-model logic
         lines.append("### PROJECT HEALTH")
         lines.append("")
 
+        def compute_project_status(tasks, completions):
+            """
+            Compute project health status.
+            - ACTIVE: Has completions in last 7 days
+            - WAITING: Has tasks, but all non-backburner are waiting
+            - INCOMPLETE: No next actions (only backburner/waiting)
+            - STALLED: Has next actions but no recent completions
+            """
+            if len(completions) > 0:
+                return "ACTIVE"
+
+            next_actions = []
+            waiting_actions = []
+
+            for task in tasks:
+                labels = set(l.lower() for l in task.get("labels", []))
+                is_backburner = bool(labels & BACKBURNER_LABELS)
+                is_waiting = bool(labels & WAITING_LABELS)
+
+                if is_backburner:
+                    continue
+                elif is_waiting:
+                    waiting_actions.append(task)
+                else:
+                    next_actions.append(task)
+
+            if len(next_actions) == 0 and len(waiting_actions) == 0:
+                return "INCOMPLETE"
+            if len(next_actions) == 0 and len(waiting_actions) > 0:
+                return "WAITING"
+            return "STALLED"
+
         def get_next_action(tasks):
-            """Get next action: highest priority task, or first task if no priorities."""
-            # Filter out waiting-for tasks
-            actionable = [t for t in tasks if not any(
-                l in t.get("labels", []) for l in ["waiting", "waiting-for"]
-            )]
+            """Get next action: highest priority non-backburner/waiting task."""
+            actionable = []
+            for t in tasks:
+                labels = set(l.lower() for l in t.get("labels", []))
+                if not (labels & BACKBURNER_LABELS) and not (labels & WAITING_LABELS):
+                    actionable.append(t)
             if not actionable:
                 return None
-            # Priority 1-3 are explicit, 4 means no priority
-            # Sort by priority (1=highest), then by order in list
             prioritized = [t for t in actionable if t.get("priority", 4) < 4]
             if prioritized:
                 return min(prioritized, key=lambda t: t.get("priority", 4))
-            # No explicit priority - first task is next action
             return actionable[0]
 
-        active = []
-        stalled = []
+        projects_by_status = {"ACTIVE": [], "STALLED": [], "WAITING": [], "INCOMPLETE": []}
 
         for proj in projects:
             pid = proj["id"]
             tasks = tasks_by_project.get(pid, [])
+            completions = completions_by_project.get(pid, [])
 
-            if not tasks:
+            if not tasks and not completions:
                 continue  # Skip empty projects
 
+            status = compute_project_status(tasks, completions)
             next_action = get_next_action(tasks)
-            if next_action:
-                active.append((proj, len(tasks), next_action))
-            else:
-                # All tasks are waiting-for, project is stalled
-                stalled.append((proj, len(tasks)))
+            projects_by_status[status].append((proj, len(tasks), len(completions), next_action))
 
-        if active:
-            lines.append("**Active Projects** (with next actions):")
-            for proj, count, next_task in sorted(active, key=lambda x: -x[1])[:8]:
-                priority = next_task.get("priority", 4)
-                priority_str = f"P{priority}" if priority < 4 else ""
-                lines.append(f"- {proj['name']}: {count} tasks")
-                lines.append(f"  → Next: {next_task['content']} {priority_str}".rstrip())
+        # Show ACTIVE projects (making progress)
+        if projects_by_status["ACTIVE"]:
+            lines.append("**ACTIVE** (completed tasks this week):")
+            for proj, task_count, comp_count, next_task in projects_by_status["ACTIVE"][:6]:
+                lines.append(f"- ✓ {proj['name']}: {comp_count} done, {task_count} open")
             lines.append("")
 
-        if stalled:
-            lines.append("**Stalled Projects** (all tasks waiting-for):")
-            for proj, count in stalled[:5]:
-                lines.append(f"- {proj['name']}: {count} waiting-for tasks - needs follow-up")
+        # Show STALLED projects (have work but no progress)
+        if projects_by_status["STALLED"]:
+            lines.append("**STALLED** (next actions exist but no recent progress):")
+            for proj, task_count, _, next_task in projects_by_status["STALLED"][:5]:
+                next_str = f" → {next_task['content'][:40]}" if next_task else ""
+                lines.append(f"- ⚠️ {proj['name']}: {task_count} tasks{next_str}")
+            lines.append("")
+
+        # Show WAITING projects
+        if projects_by_status["WAITING"]:
+            lines.append("**WAITING** (all tasks waiting-for):")
+            for proj, task_count, _, _ in projects_by_status["WAITING"][:5]:
+                lines.append(f"- ⏳ {proj['name']}: {task_count} waiting-for items")
+            lines.append("")
+
+        # Show INCOMPLETE projects (need next actions defined)
+        if projects_by_status["INCOMPLETE"]:
+            lines.append("**INCOMPLETE** (no actionable next actions):")
+            for proj, task_count, _, _ in projects_by_status["INCOMPLETE"][:5]:
+                lines.append(f"- 🔴 {proj['name']}: needs next action defined")
             lines.append("")
 
         # Waiting-for items
@@ -177,21 +241,23 @@ def run_weekly_review() -> str:
         lines.append("---")
         lines.append("**Summary:**")
         lines.append(f"- Total open tasks: {len(all_tasks)}")
+        lines.append(f"- Completed this week: {len(completed_tasks)}")
         lines.append(f"- Overdue: {len(overdue)}")
         lines.append(f"- Due this week: {len(due_this_week)}")
         lines.append(f"- Waiting-for: {len(waiting_for)}")
-        lines.append(f"- Active projects: {len(active)}")
-        lines.append(f"- Stalled projects: {len(stalled)}")
+        lines.append(f"- Projects: {len(projects_by_status['ACTIVE'])} active, {len(projects_by_status['STALLED'])} stalled, {len(projects_by_status['WAITING'])} waiting, {len(projects_by_status['INCOMPLETE'])} incomplete")
         lines.append("")
         lines.append("**Recommended Actions:**")
         if overdue:
             lines.append("1. Address overdue items first")
-        if stalled:
-            lines.append("2. Follow up on stalled projects (all waiting-for)")
+        if projects_by_status["STALLED"]:
+            lines.append("2. Make progress on stalled projects (they have next actions)")
+        if projects_by_status["INCOMPLETE"]:
+            lines.append("3. Define next actions for incomplete projects")
         if waiting_for:
             old_waiting = [t for t in waiting_for if t.get("created_at")]
             if old_waiting:
-                lines.append("3. Check waiting-for items older than 2 weeks")
+                lines.append("4. Check waiting-for items older than 2 weeks")
 
         return "\n".join(lines)
 
