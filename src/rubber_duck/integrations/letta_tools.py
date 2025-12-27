@@ -39,6 +39,7 @@ TOOL_DEFINITIONS = [
     # Project operations
     ("list_todoist_projects", "List all Todoist projects with task counts"),
     ("create_todoist_project", "Create a new project in Todoist"),
+    ("update_todoist_project", "Rename or update a project in Todoist"),
     ("archive_todoist_project", "Delete/archive a project in Todoist"),
     # GTD workflows
     ("morning_planning", "Run morning planning workflow - prioritizes today's tasks using GTD principles"),
