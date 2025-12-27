@@ -32,6 +32,21 @@ def query_todoist(filter_query: str) -> str:
         projects = proj_resp.json()
         proj_by_id = {p["id"]: p for p in projects}
 
+        # Someday-maybe detection via ancestry
+        SOMEDAY_PROJECT_NAMES = {"someday-maybe", "someday maybe", "someday/maybe", "someday"}
+
+        def is_someday_maybe(project_id):
+            """Check if project or any ancestor is named 'someday-maybe'."""
+            current_id = project_id
+            while current_id:
+                proj = proj_by_id.get(current_id)
+                if not proj:
+                    break
+                if proj.get("name", "").lower().strip() in SOMEDAY_PROJECT_NAMES:
+                    return True
+                current_id = proj.get("parent_id")
+            return False
+
         def get_project_path(pid):
             """Get full project path like 'Parent > Child'."""
             if not pid or pid not in proj_by_id:
@@ -75,6 +90,7 @@ def query_todoist(filter_query: str) -> str:
 
         def format_task(task, indent=0):
             project_path = get_project_path(task.get("project_id"))
+            someday_marker = " 💤" if is_someday_maybe(task.get("project_id")) else ""
             due = ""
             if task.get("due"):
                 due = f" (due: {task['due'].get('string', task['due'].get('date', ''))})"
@@ -83,7 +99,7 @@ def query_todoist(filter_query: str) -> str:
                 labels = f" [{', '.join(task['labels'])}]"
             prefix = "  " * indent
             subtask_marker = "↳ " if indent > 0 else ""
-            return f"{prefix}- {subtask_marker}[{project_path}] [ID:{task['id']}] {task['content']}{due}{labels}"
+            return f"{prefix}- {subtask_marker}[{project_path}] [ID:{task['id']}] {task['content']}{due}{labels}{someday_marker}"
 
         # Format tasks with hierarchy
         lines = [f"Found {len(tasks)} task(s):"]

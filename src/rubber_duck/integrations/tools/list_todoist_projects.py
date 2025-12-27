@@ -41,6 +41,21 @@ def list_todoist_projects() -> str:
         proj_by_id = {p["id"]: p for p in projects}
         roots = [p for p in projects if not p.get("parent_id")]
 
+        # Someday-maybe detection via ancestry
+        SOMEDAY_PROJECT_NAMES = {"someday-maybe", "someday maybe", "someday/maybe", "someday"}
+
+        def is_someday_maybe(project_id):
+            """Check if project or any ancestor is named 'someday-maybe'."""
+            current_id = project_id
+            while current_id:
+                proj = proj_by_id.get(current_id)
+                if not proj:
+                    break
+                if proj.get("name", "").lower().strip() in SOMEDAY_PROJECT_NAMES:
+                    return True
+                current_id = proj.get("parent_id")
+            return False
+
         def format_project(proj, indent=0, parent_name=None):
             pid = proj["id"]
             count = task_counts.get(pid, 0)
@@ -50,7 +65,9 @@ def list_todoist_projects() -> str:
                 path_info = f" (sub-project of {parent_name})"
             else:
                 path_info = ""
-            line = f"{prefix}- [ID:{pid}] {proj['name']}{path_info} ({count} tasks)"
+            # Mark someday-maybe projects
+            someday_marker = " 💤" if is_someday_maybe(pid) else ""
+            line = f"{prefix}- [ID:{pid}] {proj['name']}{path_info} ({count} tasks){someday_marker}"
             children = [p for p in projects if p.get("parent_id") == pid]
             child_lines = [format_project(c, indent + 1, proj['name']) for c in children]
             return "\n".join([line] + child_lines)

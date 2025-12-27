@@ -27,6 +27,7 @@ def run_weekly_review() -> str:
     # Label sets for categorization
     BACKBURNER_LABELS = {"someday-maybe", "maybe", "someday", "later", "backburner"}
     WAITING_LABELS = {"waiting", "waiting-for", "waiting for"}
+    SOMEDAY_PROJECT_NAMES = {"someday-maybe", "someday maybe", "someday/maybe", "someday"}
 
     try:
         # Get projects
@@ -99,6 +100,18 @@ def run_weekly_review() -> str:
 
         # Build project health report
         proj_by_id = {p["id"]: p for p in projects}
+
+        def is_someday_maybe(project_id):
+            """Check if project or any ancestor is named 'someday-maybe'."""
+            current_id = project_id
+            while current_id:
+                proj = proj_by_id.get(current_id)
+                if not proj:
+                    break
+                if proj.get("name", "").lower().strip() in SOMEDAY_PROJECT_NAMES:
+                    return True
+                current_id = proj.get("parent_id")
+            return False
 
         lines = []
         lines.append(f"## Weekly Review - Week of {today.strftime('%B %d, %Y')}")
@@ -173,6 +186,7 @@ def run_weekly_review() -> str:
 
         projects_by_status = {"ACTIVE": [], "STALLED": [], "WAITING": [], "INCOMPLETE": []}
 
+        someday_maybe_projects = []
         for proj in projects:
             pid = proj["id"]
             tasks = tasks_by_project.get(pid, [])
@@ -180,6 +194,11 @@ def run_weekly_review() -> str:
 
             if not tasks and not completions:
                 continue  # Skip empty projects
+
+            # Skip someday-maybe projects from health assessment
+            if is_someday_maybe(pid):
+                someday_maybe_projects.append((proj, len(tasks)))
+                continue
 
             status = compute_project_status(tasks, completions)
             next_action = get_next_action(tasks)
@@ -214,6 +233,15 @@ def run_weekly_review() -> str:
                 lines.append(f"- 🔴 {proj['name']}: needs next action defined")
             lines.append("")
 
+        # Show SOMEDAY-MAYBE projects (excluded from health assessment)
+        if someday_maybe_projects:
+            lines.append("**SOMEDAY-MAYBE** (on hold, not assessed):")
+            for proj, task_count in someday_maybe_projects[:5]:
+                lines.append(f"- 💤 {proj['name']}: {task_count} tasks")
+            if len(someday_maybe_projects) > 5:
+                lines.append(f"  ... and {len(someday_maybe_projects) - 5} more")
+            lines.append("")
+
         # Waiting-for items
         if waiting_for:
             lines.append("### WAITING-FOR ITEMS")
@@ -245,7 +273,7 @@ def run_weekly_review() -> str:
         lines.append(f"- Overdue: {len(overdue)}")
         lines.append(f"- Due this week: {len(due_this_week)}")
         lines.append(f"- Waiting-for: {len(waiting_for)}")
-        lines.append(f"- Projects: {len(projects_by_status['ACTIVE'])} active, {len(projects_by_status['STALLED'])} stalled, {len(projects_by_status['WAITING'])} waiting, {len(projects_by_status['INCOMPLETE'])} incomplete")
+        lines.append(f"- Projects: {len(projects_by_status['ACTIVE'])} active, {len(projects_by_status['STALLED'])} stalled, {len(projects_by_status['WAITING'])} waiting, {len(projects_by_status['INCOMPLETE'])} incomplete, {len(someday_maybe_projects)} someday-maybe")
         lines.append("")
         lines.append("**Recommended Actions:**")
         if overdue:
