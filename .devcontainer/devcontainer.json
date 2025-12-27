@@ -10,11 +10,10 @@
     "ghcr.io/meaningful-ooo/devcontainer-features/homebrew:2": {}
   },
   "mounts": [
-    "source=${localEnv:HOME}/.claude/.credentials.json,target=/home/vscode/.claude/.credentials.json,type=bind,readonly",
     "source=${localEnv:HOME}/Projects,target=/projects,type=bind,readonly"
   ],
   "containerEnv": {
     "GITHUB_TOKEN": "${localEnv:RUBBER_DUCK_GH_TOKEN}"
   },
-  "postCreateCommand": "sudo chown vscode:vscode ~/.claude && brew install steveyegge/beads/bd && npm install -g @anthropic-ai/claude-code"
+  "postCreateCommand": "brew install steveyegge/beads/bd && npm install -g @anthropic-ai/claude-code"
 }
