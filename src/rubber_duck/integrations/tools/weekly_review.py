@@ -102,35 +102,52 @@ def run_weekly_review() -> str:
         lines.append("### PROJECT HEALTH")
         lines.append("")
 
+        def get_next_action(tasks):
+            """Get next action: highest priority task, or first task if no priorities."""
+            # Filter out waiting-for tasks
+            actionable = [t for t in tasks if not any(
+                l in t.get("labels", []) for l in ["waiting", "waiting-for"]
+            )]
+            if not actionable:
+                return None
+            # Priority 1-3 are explicit, 4 means no priority
+            # Sort by priority (1=highest), then by order in list
+            prioritized = [t for t in actionable if t.get("priority", 4) < 4]
+            if prioritized:
+                return min(prioritized, key=lambda t: t.get("priority", 4))
+            # No explicit priority - first task is next action
+            return actionable[0]
+
         active = []
         stalled = []
-        empty = []
 
         for proj in projects:
             pid = proj["id"]
             tasks = tasks_by_project.get(pid, [])
-            count = len(tasks)
 
-            if count == 0:
-                empty.append(proj)
-            elif count > 0:
-                # Check if any have due dates (active) or all are floating (stalled)
-                has_due = any(t.get("due") for t in tasks)
-                if has_due:
-                    active.append((proj, count))
-                else:
-                    stalled.append((proj, count))
+            if not tasks:
+                continue  # Skip empty projects
+
+            next_action = get_next_action(tasks)
+            if next_action:
+                active.append((proj, len(tasks), next_action))
+            else:
+                # All tasks are waiting-for, project is stalled
+                stalled.append((proj, len(tasks)))
 
         if active:
-            lines.append("**Active Projects** (have scheduled work):")
-            for proj, count in sorted(active, key=lambda x: -x[1])[:8]:
+            lines.append("**Active Projects** (with next actions):")
+            for proj, count, next_task in sorted(active, key=lambda x: -x[1])[:8]:
+                priority = next_task.get("priority", 4)
+                priority_str = f"P{priority}" if priority < 4 else ""
                 lines.append(f"- {proj['name']}: {count} tasks")
+                lines.append(f"  → Next: {next_task['content']} {priority_str}".rstrip())
             lines.append("")
 
         if stalled:
-            lines.append("**Stalled Projects** (no due dates set):")
+            lines.append("**Stalled Projects** (all tasks waiting-for):")
             for proj, count in stalled[:5]:
-                lines.append(f"- {proj['name']}: {count} tasks - needs next action with deadline")
+                lines.append(f"- {proj['name']}: {count} waiting-for tasks - needs follow-up")
             lines.append("")
 
         # Waiting-for items
@@ -170,11 +187,11 @@ def run_weekly_review() -> str:
         if overdue:
             lines.append("1. Address overdue items first")
         if stalled:
-            lines.append("2. Add next actions with deadlines to stalled projects")
+            lines.append("2. Follow up on stalled projects (all waiting-for)")
         if waiting_for:
             old_waiting = [t for t in waiting_for if t.get("created_at")]
             if old_waiting:
-                lines.append("3. Follow up on waiting-for items older than 2 weeks")
+                lines.append("3. Check waiting-for items older than 2 weeks")
 
         return "\n".join(lines)
 
