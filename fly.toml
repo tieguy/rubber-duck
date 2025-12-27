@@ -2,7 +2,7 @@
 # See https://fly.io/docs/reference/configuration/
 
 app = "rubber-duck"
-primary_region = "sfo"
+primary_region = "lax"
 
 [env]
   TZ = "America/Los_Angeles"
