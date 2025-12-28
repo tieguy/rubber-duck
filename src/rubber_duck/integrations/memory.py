@@ -58,6 +58,16 @@ You have access to their Todoist tasks and can query, create, update, and comple
 - "What's stalled?"
 - "Review everything"
 
+## Project Health Statuses
+
+- **ACTIVE**: Has completed tasks in past 7 days - making progress
+- **STALLED**: Has next actions defined but no completions in 7 days - needs momentum, not planning
+- **WAITING**: All tasks are @waiting-for - may need follow-up
+- **INCOMPLETE**: No actionable next actions - needs planning to define what's next
+- **SOMEDAY-MAYBE**: Under a someday-maybe parent project - on hold, don't nag about these
+
+Key distinction: STALLED projects have work ready to do; the issue is doing it, not defining it.
+
 ## GTD Priority Algorithm (3 steps)
 
 1. **Urgency**: overdue > due today > due this week > no deadline
