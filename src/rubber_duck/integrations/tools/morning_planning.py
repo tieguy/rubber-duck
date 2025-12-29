@@ -1,12 +1,13 @@
 def run_morning_planning() -> str:
     """Run the morning planning workflow.
 
-    This tool queries Todoist and generates a prioritized, time-blocked plan
-    for TODAY based on GTD principles:
-    1. Identify overdue and due-today tasks (highest priority)
-    2. Check for tasks that slipped from yesterday
-    3. Apply 3-step priority algorithm (urgency -> feasibility -> strategic value)
-    4. Generate realistic schedule for remaining day
+    This tool queries Todoist AND Google Calendar to generate a prioritized,
+    time-blocked plan for TODAY based on GTD principles:
+    1. Check calendar for fixed commitments (meetings, events)
+    2. Identify overdue and due-today tasks (highest priority)
+    3. Check for tasks that slipped from yesterday
+    4. Apply 3-step priority algorithm (urgency -> feasibility -> strategic value)
+    5. Generate realistic schedule around calendar blocks
 
     Call this when the user asks for:
     - "What should I work on today?"
@@ -15,15 +16,56 @@ def run_morning_planning() -> str:
     - "What's on my plate?"
 
     Returns:
-        Formatted morning plan with TOP 3 priorities and time blocks
+        Formatted morning plan with calendar events, TOP 3 priorities, and time blocks
     """
+    import base64
+    import json
     import os
+    from datetime import date, datetime, timedelta
+
     import requests
-    from datetime import datetime, date, timedelta
 
     api_key = os.environ.get("TODOIST_API_KEY")
     if not api_key:
         return "Todoist is not configured. Cannot run morning planning."
+
+    # Helper to fetch calendar events
+    def get_calendar_events():
+        """Fetch today's calendar events if Google Calendar is configured."""
+        gcal_creds = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
+        if not gcal_creds:
+            return None
+
+        try:
+            from google.oauth2 import service_account
+            from googleapiclient.discovery import build
+
+            json_str = base64.b64decode(gcal_creds).decode("utf-8")
+            info = json.loads(json_str)
+            credentials = service_account.Credentials.from_service_account_info(
+                info,
+                scopes=["https://www.googleapis.com/auth/calendar.readonly"],
+            )
+            service = build("calendar", "v3", credentials=credentials)
+
+            now = datetime.now()
+            time_min = now.replace(hour=0, minute=0, second=0)
+            time_max = now.replace(hour=23, minute=59, second=59)
+            time_min_str = time_min.strftime("%Y-%m-%dT%H:%M:%S") + "Z"
+            time_max_str = time_max.strftime("%Y-%m-%dT%H:%M:%S") + "Z"
+
+            events_result = service.events().list(
+                calendarId="primary",
+                timeMin=time_min_str,
+                timeMax=time_max_str,
+                maxResults=20,
+                singleEvents=True,
+                orderBy="startTime",
+            ).execute()
+
+            return events_result.get("items", [])
+        except Exception:
+            return None
 
     try:
         # Get all tasks
@@ -35,7 +77,6 @@ def run_morning_planning() -> str:
         all_tasks = response.json()
 
         today = date.today()
-        today_str = today.isoformat()
 
         # Categorize tasks by urgency
         overdue = []
@@ -79,6 +120,39 @@ def run_morning_planning() -> str:
         lines.append(f"*Generated at {now.strftime('%I:%M %p')}*")
         lines.append("")
 
+        # Calendar events (fixed commitments)
+        calendar_events = get_calendar_events()
+        if calendar_events:
+            lines.append("### Calendar (Fixed Commitments)")
+            for event in calendar_events:
+                start = event.get("start", {})
+                start_str = start.get("dateTime") or start.get("date")
+                all_day = "date" in start and "dateTime" not in start
+
+                if all_day:
+                    time_display = "All day"
+                else:
+                    try:
+                        start_dt = datetime.fromisoformat(start_str.replace("Z", "+00:00"))
+                        time_display = start_dt.strftime("%I:%M %p").lstrip("0")
+                    except ValueError:
+                        time_display = start_str
+
+                summary = event.get("summary", "(No title)")
+                location = event.get("location", "")
+                if location:
+                    lines.append(f"- **{time_display}**: {summary} @ {location}")
+                else:
+                    lines.append(f"- **{time_display}**: {summary}")
+            lines.append("")
+        elif calendar_events is None:
+            # Calendar not configured - no message needed
+            pass
+        else:
+            lines.append("### Calendar")
+            lines.append("*No events scheduled for today*")
+            lines.append("")
+
         # Critical alerts
         if overdue:
             lines.append("### OVERDUE (Address First)")
@@ -120,7 +194,7 @@ def run_morning_planning() -> str:
                     try:
                         dt = datetime.fromisoformat(time_str.replace('Z', '+00:00'))
                         time_str = dt.strftime('%I:%M %p')
-                    except:
+                    except ValueError:
                         pass
                 lines.append(f"- {time_str}: [ID:{task['id']}] {task['content']}")
             lines.append("")
@@ -144,7 +218,11 @@ def run_morning_planning() -> str:
 
         # Summary stats
         lines.append("---")
-        lines.append(f"*{len(overdue)} overdue | {len(due_today)} due today | {len([t for t, _ in due_this_week])} due this week | {len(no_date)} unscheduled*")
+        week_count = len([t for t, _ in due_this_week])
+        lines.append(
+            f"*{len(overdue)} overdue | {len(due_today)} due today | "
+            f"{week_count} due this week | {len(no_date)} unscheduled*"
+        )
 
         return "\n".join(lines)
 

@@ -18,9 +18,15 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+gcal = [
+    "google-auth>=2.0.0",
+    "google-api-python-client>=2.0.0",
+]
 dev = [
     "pytest>=8.0",
     "ruff>=0.1.0",
+    "google-auth>=2.0.0",
+    "google-api-python-client>=2.0.0",
 ]
 
 [build-system]

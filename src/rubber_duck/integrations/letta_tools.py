@@ -29,7 +29,8 @@ def load_tool_source(name: str) -> str:
     return tool_path.read_text()
 
 
-# Tool definitions: (filename, description)
+# Tool definitions: (filename, description, extra_pip_requirements)
+# extra_pip_requirements is optional - defaults to just ["requests"]
 TOOL_DEFINITIONS = [
     # Task CRUD
     ("query_todoist", "Query tasks from Todoist"),
@@ -41,11 +42,21 @@ TOOL_DEFINITIONS = [
     ("create_todoist_project", "Create a new project in Todoist"),
     ("update_todoist_project", "Rename or update a project in Todoist"),
     ("archive_todoist_project", "Delete/archive a project in Todoist"),
-    # GTD workflows
-    ("morning_planning", "Run morning planning workflow - prioritizes today's tasks using GTD principles"),
-    ("end_of_day_review", "Run end-of-day review - identifies slipped tasks and prepares tomorrow's priorities"),
-    ("weekly_review", "Run weekly review - checks project health, waiting-for items, and overdue tasks"),
+    # GTD workflows (with optional calendar awareness)
+    (
+        "morning_planning",
+        "Run morning planning - prioritizes tasks with GTD principles",
+        ["google-auth", "google-api-python-client"],
+    ),
+    (
+        "end_of_day_review",
+        "Run end-of-day review - slipped tasks and tomorrow's priorities",
+        ["google-auth", "google-api-python-client"],
+    ),
+    ("weekly_review", "Run weekly review - project health and overdue tasks"),
     ("get_completed_tasks", "Get recently completed tasks from Todoist"),
+    # Google Calendar
+    ("query_gcal", "Query Google Calendar for events", ["google-auth", "google-api-python-client"]),
 ]
 
 
@@ -60,13 +71,26 @@ def setup_tools(client: Letta) -> list[str]:
     """
     tool_ids = []
 
-    for filename, description in TOOL_DEFINITIONS:
+    for tool_def in TOOL_DEFINITIONS:
+        # Unpack with optional extra requirements
+        if len(tool_def) == 3:
+            filename, description, extra_reqs = tool_def
+        else:
+            filename, description = tool_def
+            extra_reqs = []
+
         try:
             source_code = load_tool_source(filename)
+
+            # Build pip requirements list
+            pip_reqs = [{"name": "requests"}]
+            for req in extra_reqs:
+                pip_reqs.append({"name": req})
+
             tool = client.tools.upsert(
                 source_code=source_code,
                 description=description,
-                pip_requirements=[{"name": "requests"}],
+                pip_requirements=pip_reqs,
             )
             tool_ids.append(tool.id)
             logger.info(f"Created/updated tool: {filename} ({tool.id})")
@@ -103,16 +127,26 @@ def setup_agent_tools(client: Letta, agent_id: str) -> None:
         client: Letta API client
         agent_id: The agent to set up tools for
     """
-    # First, set the environment variable for the agent's sandbox
+    # First, set the environment variables for the agent's sandbox
     try:
+        env_vars = {}
+
         todoist_key = os.environ.get("TODOIST_API_KEY", "")
         if todoist_key:
-            # Set agent-scoped env var for tool execution
+            env_vars["TODOIST_API_KEY"] = todoist_key
+            logger.info("Will set TODOIST_API_KEY in agent's tool environment")
+
+        gcal_creds = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON", "")
+        if gcal_creds:
+            env_vars["GOOGLE_SERVICE_ACCOUNT_JSON"] = gcal_creds
+            logger.info("Will set GOOGLE_SERVICE_ACCOUNT_JSON in agent's tool environment")
+
+        if env_vars:
             client.agents.update(
                 agent_id=agent_id,
-                tool_exec_environment_variables={"TODOIST_API_KEY": todoist_key}
+                tool_exec_environment_variables=env_vars
             )
-            logger.info("Set TODOIST_API_KEY in agent's tool environment")
+            logger.info(f"Set {len(env_vars)} environment variable(s) in agent's tool environment")
     except Exception as e:
         logger.warning(f"Could not set agent environment variables: {e}")
 
