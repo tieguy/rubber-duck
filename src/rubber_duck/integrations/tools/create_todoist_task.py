@@ -1,4 +1,4 @@
-def create_todoist_task(content: str, due_string: str = None, labels: list = None) -> str:
+def create_todoist_task(content: str, due_string: str = None, labels: list = None, project_id: str = None) -> str:
     """Create a new task in Todoist.
 
     Use this tool when the user wants to add a task, reminder, or todo item.
@@ -7,6 +7,7 @@ def create_todoist_task(content: str, due_string: str = None, labels: list = Non
         content: The task title/description
         due_string: Optional due date in natural language (e.g., "tomorrow", "next monday")
         labels: Optional list of label names to apply
+        project_id: Optional project ID to put the task in (get from list_todoist_projects)
 
     Returns:
         Confirmation message with task details
@@ -24,6 +25,8 @@ def create_todoist_task(content: str, due_string: str = None, labels: list = Non
             payload["due_string"] = due_string
         if labels:
             payload["labels"] = labels
+        if project_id:
+            payload["project_id"] = project_id
 
         response = requests.post(
             "https://api.todoist.com/rest/v2/tasks",
