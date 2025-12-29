@@ -6,7 +6,7 @@ def update_todoist_task(task_id: str, due_string: str = None, content: str = Non
 
     Args:
         task_id: The Todoist task ID (from query results)
-        due_string: New due date in natural language (e.g., "tomorrow", "Dec 29")
+        due_string: New due date in natural language (e.g., "tomorrow", "next monday", "January 16th", "Jan 16")
         content: New task content/title (optional)
 
     Returns:

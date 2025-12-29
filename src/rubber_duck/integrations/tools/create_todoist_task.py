@@ -5,7 +5,7 @@ def create_todoist_task(content: str, due_string: str = None, labels: list = Non
 
     Args:
         content: The task title/description
-        due_string: Optional due date in natural language (e.g., "tomorrow", "next monday")
+        due_string: Optional due date in natural language (e.g., "tomorrow", "next monday", "January 16th", "Jan 16")
         labels: Optional list of label names to apply
         project_id: Optional project ID to put the task in (get from list_todoist_projects)
 
