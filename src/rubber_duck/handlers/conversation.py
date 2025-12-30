@@ -24,11 +24,15 @@ async def handle_message(bot, message: discord.Message) -> None:
     logger.info(f"Handling message from owner: {content[:50]}...")
 
     try:
-        # Show typing indicator while processing
-        async with message.channel.typing():
-            response = await process_user_message(content)
+        # Send a "thinking" message that we'll edit with the real response
+        thinking_msg = await message.reply("🤔 Thinking...")
 
-        await message.reply(response)
+        try:
+            response = await process_user_message(content)
+            await thinking_msg.edit(content=response)
+        except Exception as e:
+            logger.exception(f"Error processing message: {e}")
+            await thinking_msg.edit(content="Sorry, something went wrong processing your message.")
 
     except Exception as e:
         logger.exception(f"Error handling message: {e}")

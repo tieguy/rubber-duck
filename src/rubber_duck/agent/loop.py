@@ -21,7 +21,7 @@ from rubber_duck.agent.utils import run_async
 logger = logging.getLogger(__name__)
 
 # Model configuration
-MODEL = "claude-sonnet-4-20250514"  # Use Sonnet for speed; Opus for important tasks
+MODEL = "claude-opus-4-5-20250114"  # Opus 4.5 for best reasoning
 MAX_TOOL_CALLS = 20
 TIMEOUT = 60
 
