@@ -35,6 +35,7 @@ When the user asks to add a task conversationally, extract structured data:
 - **Context clues**: Look for project/label hints ("house", "work", "health", project names, etc.)
 - **Project matching**: Call list_todoist_projects to find matching project by name, then pass its ID
 - **Label matching**: Apply labels that match context clues (e.g., "at home" → @home, "errand" → @errands)
+- **Effort labels**: @quick (under 15 min, can knock out fast) vs @deep (needs focus block, 30+ min). Apply when effort is mentioned or obvious from task nature.
 - **Best-guess with confirmation**: Pick the most likely project/labels and confirm in your response: "Added to House project with @home label. Let me know if that's wrong."
 - **No match**: If no context clues or no reasonable match, use inbox (omit project_id)
 
@@ -85,6 +86,12 @@ Key distinction: STALLED projects have work ready to do; the issue is doing it, 
 1. **Urgency**: overdue > due today > due this week > no deadline
 2. **Feasibility**: Does it fit available time? Complex work needs focus blocks.
 3. **Strategic value**: Does it unblock other work? Align with goals?
+
+## Time-Based Task Selection
+
+When user mentions available time, filter by effort labels:
+- "I have a few minutes" / "quick wins" → query @quick tasks
+- "I have a focus block" / "deep work time" → query @deep tasks
 
 ## Follow-Up Strategy
 
