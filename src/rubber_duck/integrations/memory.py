@@ -160,13 +160,45 @@ async def get_or_create_agent() -> str | None:
                 setup_agent_tools(client, _agent_id)
                 return _agent_id
 
-        # Create new agent
+        # Create new agent with Strix-tier memory blocks
         agent = client.agents.create(
             name=AGENT_NAME,
             system=SYSTEM_PROMPT,
             memory_blocks=[
-                {"label": "persona", "value": "I am Rubber Duck, a friendly assistant."},
-                {"label": "human", "value": "My owner. I'm learning about them."},
+                # Core identity blocks (Tier 1)
+                {
+                    "label": "persona",
+                    "value": "My owner. I'm learning about them.",
+                },
+                {
+                    "label": "bot_values",
+                    "value": "I am Rubber Duck, a competent and efficient executive assistant. I help my owner stay organized using GTD principles.",
+                },
+                {
+                    "label": "patterns",
+                    "value": "Still observing behavioral patterns.",
+                },
+                {
+                    "label": "guidelines",
+                    "value": "Be concise and actionable. Suggest specific next actions. Don't be preachy.",
+                },
+                {
+                    "label": "communication",
+                    "value": "Direct, efficient, no fluff. Include task IDs for reference.",
+                },
+                # Index blocks (Tier 2)
+                {
+                    "label": "current_focus",
+                    "value": "No specific focus set.",
+                },
+                {
+                    "label": "schedule",
+                    "value": "Check calendar for schedule context.",
+                },
+                {
+                    "label": "file_index",
+                    "value": "state/inbox.md - unprocessed captures\nstate/today.md - current priorities\nstate/insights/ - dated insight files\nconfig/nudges.yaml - nudge schedule",
+                },
             ],
         )
         _agent_id = agent.id
