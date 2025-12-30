@@ -5,8 +5,6 @@ import os
 
 from letta_client import Letta
 
-from rubber_duck.integrations.letta_tools import setup_agent_tools
-
 logger = logging.getLogger(__name__)
 
 # Cache the agent ID after first creation/lookup
@@ -156,8 +154,6 @@ async def get_or_create_agent() -> str | None:
                     logger.info("Updated agent system prompt")
                 except Exception as e:
                     logger.warning(f"Could not update system prompt: {e}")
-                # Ensure tools are set up
-                setup_agent_tools(client, _agent_id)
                 return _agent_id
 
         # Create new agent with Strix-tier memory blocks
@@ -203,8 +199,6 @@ async def get_or_create_agent() -> str | None:
         )
         _agent_id = agent.id
         logger.info(f"Created new Letta agent: {_agent_id}")
-        # Set up tools for new agent
-        setup_agent_tools(client, _agent_id)
         return _agent_id
 
     except Exception as e:
