@@ -448,6 +448,28 @@ def query_gcal(days: int = 7) -> str:
 
 
 # =============================================================================
+# GTD Workflow Tools
+# =============================================================================
+
+def run_morning_planning() -> str:
+    """Run morning planning workflow.
+
+    Returns prioritized plan for today with calendar + tasks.
+    """
+    from rubber_duck.integrations.tools.morning_planning import run_morning_planning as _run
+    return _run()
+
+
+def run_weekly_review() -> str:
+    """Run weekly review workflow.
+
+    Returns project health, overdue items, waiting-for status.
+    """
+    from rubber_duck.integrations.tools.weekly_review import run_weekly_review as _run
+    return _run()
+
+
+# =============================================================================
 # Tool Schemas for Anthropic API
 # =============================================================================
 
@@ -636,6 +658,16 @@ TOOL_SCHEMAS = [
             "required": [],
         },
     },
+    {
+        "name": "run_morning_planning",
+        "description": "Run morning planning - prioritized plan with calendar + tasks for today.",
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
+    {
+        "name": "run_weekly_review",
+        "description": "Run weekly review - project health, overdue items, waiting-for status.",
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
 ]
 
 # Map tool names to functions
@@ -652,6 +684,8 @@ TOOL_FUNCTIONS = {
     "create_todoist_task": create_todoist_task,
     "complete_todoist_task": complete_todoist_task,
     "query_gcal": query_gcal,
+    "run_morning_planning": run_morning_planning,
+    "run_weekly_review": run_weekly_review,
 }
 
 
