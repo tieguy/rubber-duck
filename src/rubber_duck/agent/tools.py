@@ -5,32 +5,15 @@ Each tool returns a string result suitable for the LLM.
 """
 
 import asyncio
-import concurrent.futures
 import json
 import logging
 import os
 import subprocess
 from pathlib import Path
 
+from rubber_duck.agent.utils import run_async
+
 logger = logging.getLogger(__name__)
-
-
-def _run_async(coro):
-    """Run an async coroutine from sync context safely.
-
-    Handles the case where we're called from within an existing async loop
-    by running the coroutine in a thread pool.
-    """
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        # No running loop, we can use asyncio.run()
-        return asyncio.run(coro)
-    else:
-        # Running loop exists, run in thread pool
-        with concurrent.futures.ThreadPoolExecutor() as pool:
-            future = pool.submit(asyncio.run, coro)
-            return future.result(timeout=30)
 
 # Base paths
 REPO_ROOT = Path(__file__).parent.parent.parent.parent
@@ -228,7 +211,7 @@ def get_memory_blocks() -> str:
 
     try:
         # Get agent ID (may need to create)
-        agent_id = _run_async(get_or_create_agent())
+        agent_id = run_async(get_or_create_agent())
         if not agent_id:
             return "Error: Could not get agent"
 
@@ -260,7 +243,7 @@ def set_memory_block(name: str, value: str) -> str:
         return "Error: Letta not configured"
 
     try:
-        agent_id = _run_async(get_or_create_agent())
+        agent_id = run_async(get_or_create_agent())
         if not agent_id:
             return "Error: Could not get agent"
 
@@ -296,7 +279,7 @@ def search_memory(query: str) -> str:
         return "Error: Letta not configured"
 
     try:
-        agent_id = _run_async(get_or_create_agent())
+        agent_id = run_async(get_or_create_agent())
         if not agent_id:
             return "Error: Could not get agent"
 
@@ -337,7 +320,7 @@ def query_todoist(filter_query: str) -> str:
         return "Error: Todoist not configured"
 
     try:
-        tasks = _run_async(
+        tasks = run_async(
             asyncio.to_thread(client.get_tasks, filter=filter_query)
         )
 
@@ -390,7 +373,7 @@ def create_todoist_task(
         if labels:
             kwargs["labels"] = labels
 
-        task = _run_async(
+        task = run_async(
             asyncio.to_thread(client.add_task, **kwargs)
         )
 
@@ -415,7 +398,7 @@ def complete_todoist_task(task_id: str) -> str:
         return "Error: Todoist not configured"
 
     try:
-        _run_async(
+        run_async(
             asyncio.to_thread(client.close_task, task_id=task_id)
         )
         return f"Completed task {task_id}"
@@ -443,7 +426,7 @@ def query_gcal(days: int = 7) -> str:
         now = datetime.now()
         end = now + timedelta(days=days)
 
-        events = _run_async(
+        events = run_async(
             get_events(time_min=now, time_max=end)
         )
 

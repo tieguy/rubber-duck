@@ -7,8 +7,6 @@ Implements the Strix-style agent pattern:
 4. Return response (or loop for more tools)
 """
 
-import asyncio
-import concurrent.futures
 import json
 import logging
 import os
@@ -18,6 +16,7 @@ from pathlib import Path
 from anthropic import Anthropic
 
 from rubber_duck.agent.tools import TOOL_SCHEMAS, execute_tool
+from rubber_duck.agent.utils import run_async
 
 logger = logging.getLogger(__name__)
 
@@ -28,24 +27,6 @@ TIMEOUT = 60
 
 # Journal for unified logging
 JOURNAL_PATH = "state/journal.jsonl"
-
-
-def _run_async(coro):
-    """Run an async coroutine from sync context safely.
-
-    Handles the case where we're called from within an existing async loop
-    by running the coroutine in a thread pool.
-    """
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        # No running loop, we can use asyncio.run()
-        return asyncio.run(coro)
-    else:
-        # Running loop exists, run in thread pool
-        with concurrent.futures.ThreadPoolExecutor() as pool:
-            future = pool.submit(asyncio.run, coro)
-            return future.result(timeout=30)
 
 
 def _log_to_journal(event_type: str, data: dict) -> None:
@@ -114,7 +95,7 @@ def _get_memory_blocks() -> dict:
         if not client:
             return {}
 
-        agent_id = _run_async(get_or_create_agent())
+        agent_id = run_async(get_or_create_agent())
         if not agent_id:
             return {}
 
@@ -189,11 +170,16 @@ async def run_agent_loop(user_message: str, context: str = "") -> str:
             tool_name = tool_block.name
             tool_input = tool_block.input
 
+            # Validate tool_input is a dict before calling execute_tool
+            if not isinstance(tool_input, dict):
+                tool_input = {}
+
             _log_to_journal("tool_call", {"tool": tool_name, "args": tool_input})
 
             result = execute_tool(tool_name, tool_input)
 
-            _log_to_journal("tool_result", {"tool": tool_name, "result": result[:500]})
+            result_log = result[:500] + ("..." if len(result) > 500 else "")
+            _log_to_journal("tool_result", {"tool": tool_name, "result": result_log})
 
             tool_results.append({
                 "type": "tool_result",
