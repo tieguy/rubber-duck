@@ -4,6 +4,8 @@ Tools execute in the main Python process, not in Letta's sandbox.
 Each tool returns a string result suitable for the LLM.
 """
 
+import asyncio
+import concurrent.futures
 import json
 import logging
 import os
@@ -11,6 +13,24 @@ import subprocess
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+
+def _run_async(coro):
+    """Run an async coroutine from sync context safely.
+
+    Handles the case where we're called from within an existing async loop
+    by running the coroutine in a thread pool.
+    """
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        # No running loop, we can use asyncio.run()
+        return asyncio.run(coro)
+    else:
+        # Running loop exists, run in thread pool
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            future = pool.submit(asyncio.run, coro)
+            return future.result(timeout=30)
 
 # Base paths
 REPO_ROOT = Path(__file__).parent.parent.parent.parent
@@ -151,19 +171,25 @@ def git_commit(message: str, paths: list[str] | None = None) -> str:
         # Stage files
         if paths:
             for path in paths:
-                subprocess.run(
+                result = subprocess.run(
                     ["git", "add", path],
                     cwd=REPO_ROOT,
                     capture_output=True,
+                    text=True,
                     timeout=10,
                 )
+                if result.returncode != 0:
+                    return f"Error staging {path}: {result.stderr}"
         else:
-            subprocess.run(
+            result = subprocess.run(
                 ["git", "add", "-A"],
                 cwd=REPO_ROOT,
                 capture_output=True,
+                text=True,
                 timeout=10,
             )
+            if result.returncode != 0:
+                return f"Error staging files: {result.stderr}"
 
         # Commit
         result = subprocess.run(
@@ -195,7 +221,6 @@ def get_memory_blocks() -> str:
         JSON-formatted memory blocks or error message
     """
     from rubber_duck.integrations.memory import get_client, get_or_create_agent
-    import asyncio
 
     client = get_client()
     if not client:
@@ -203,7 +228,7 @@ def get_memory_blocks() -> str:
 
     try:
         # Get agent ID (may need to create)
-        agent_id = asyncio.get_event_loop().run_until_complete(get_or_create_agent())
+        agent_id = _run_async(get_or_create_agent())
         if not agent_id:
             return "Error: Could not get agent"
 
@@ -229,14 +254,13 @@ def set_memory_block(name: str, value: str) -> str:
         Success or error message
     """
     from rubber_duck.integrations.memory import get_client, get_or_create_agent
-    import asyncio
 
     client = get_client()
     if not client:
         return "Error: Letta not configured"
 
     try:
-        agent_id = asyncio.get_event_loop().run_until_complete(get_or_create_agent())
+        agent_id = _run_async(get_or_create_agent())
         if not agent_id:
             return "Error: Could not get agent"
 
@@ -266,14 +290,13 @@ def search_memory(query: str) -> str:
         Search results or error message
     """
     from rubber_duck.integrations.memory import get_client, get_or_create_agent
-    import asyncio
 
     client = get_client()
     if not client:
         return "Error: Letta not configured"
 
     try:
-        agent_id = asyncio.get_event_loop().run_until_complete(get_or_create_agent())
+        agent_id = _run_async(get_or_create_agent())
         if not agent_id:
             return "Error: Could not get agent"
 
@@ -308,14 +331,13 @@ def query_todoist(filter_query: str) -> str:
         Formatted task list or error message
     """
     from rubber_duck.integrations.todoist import get_client
-    import asyncio
 
     client = get_client()
     if not client:
         return "Error: Todoist not configured"
 
     try:
-        tasks = asyncio.get_event_loop().run_until_complete(
+        tasks = _run_async(
             asyncio.to_thread(client.get_tasks, filter=filter_query)
         )
 
@@ -354,7 +376,6 @@ def create_todoist_task(
         Created task info or error message
     """
     from rubber_duck.integrations.todoist import get_client
-    import asyncio
 
     client = get_client()
     if not client:
@@ -369,7 +390,7 @@ def create_todoist_task(
         if labels:
             kwargs["labels"] = labels
 
-        task = asyncio.get_event_loop().run_until_complete(
+        task = _run_async(
             asyncio.to_thread(client.add_task, **kwargs)
         )
 
@@ -388,14 +409,13 @@ def complete_todoist_task(task_id: str) -> str:
         Success or error message
     """
     from rubber_duck.integrations.todoist import get_client
-    import asyncio
 
     client = get_client()
     if not client:
         return "Error: Todoist not configured"
 
     try:
-        asyncio.get_event_loop().run_until_complete(
+        _run_async(
             asyncio.to_thread(client.close_task, task_id=task_id)
         )
         return f"Completed task {task_id}"
@@ -418,13 +438,12 @@ def query_gcal(days: int = 7) -> str:
     """
     from rubber_duck.integrations.gcal import get_events
     from datetime import datetime, timedelta
-    import asyncio
 
     try:
         now = datetime.now()
         end = now + timedelta(days=days)
 
-        events = asyncio.get_event_loop().run_until_complete(
+        events = _run_async(
             get_events(time_min=now, time_max=end)
         )
 
