@@ -320,9 +320,12 @@ def query_todoist(filter_query: str) -> str:
         return "Error: Todoist not configured"
 
     try:
-        tasks = run_async(
-            asyncio.to_thread(client.get_tasks, filter=filter_query)
+        # filter_tasks returns an Iterator[list[Task]], flatten it
+        task_batches = run_async(
+            asyncio.to_thread(lambda: list(client.filter_tasks(query=filter_query)))
         )
+        # Flatten the list of lists
+        tasks = [task for batch in task_batches for task in batch]
 
         if not tasks:
             return f"No tasks found matching '{filter_query}'"

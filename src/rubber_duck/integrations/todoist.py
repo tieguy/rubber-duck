@@ -36,7 +36,11 @@ async def get_tasks_by_filter(filter_query: str) -> list[dict]:
 
     try:
         # Wrap sync call to avoid blocking event loop
-        tasks = await asyncio.to_thread(client.get_tasks, filter=filter_query)
+        # filter_tasks returns Iterator[list[Task]], flatten it
+        task_batches = await asyncio.to_thread(
+            lambda: list(client.filter_tasks(query=filter_query))
+        )
+        tasks = [task for batch in task_batches for task in batch]
         return [
             {
                 "id": t.id,
