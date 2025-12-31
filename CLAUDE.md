@@ -8,26 +8,47 @@ Rubber Duck is a Discord bot that nudges you at configurable times with context-
 
 Key components:
 - **Discord bot** for chat interface
-- **Letta Cloud** for persistent conversational memory + Claude LLM
-- **Todoist** for task management (via Letta custom tools)
+- **Anthropic SDK** for LLM reasoning (Claude Opus 4.5)
+- **Letta Cloud** for persistent memory blocks only (no LLM calls)
+- **Todoist** for task management (via local tools)
 - **APScheduler** for scheduled nudges
 - **Fly.io** for deployment (planned)
 
-See `docs/plans/2025-12-25-rubber-duck-design.md` for full architecture.
+Architecture follows Strix's three-tier memory pattern - see `docs/plans/2025-12-31-strix-architecture-design.md`.
 
 ## Architecture
 
-### Letta Integration
+### Three-Tier Memory (Strix Pattern)
 
-The bot uses Letta Cloud for persistent memory across conversations. Letta stores:
-- Memory blocks (persona, patterns, current_focus, etc.)
-- Archival memory (searchable long-term storage)
+**Tier 1 - Core Identity (Letta Memory Blocks):** Always loaded into system prompt.
+- `persona`: Facts about owner
+- `bot_values`: Bot identity and principles
+- `patterns`: Observed behavioral patterns
+- `guidelines`, `communication`: Operating rules, tone
+- `current_focus`, `schedule`, `file_index`: Index pointers
 
-**Key file:** `src/rubber_duck/integrations/memory.py` - Agent management, system prompt
+**Tier 2 - Long-Term Memory (Letta Archival):** Searchable via `search_memory` tool.
+- Past conversations, insights, preferences, project context
+
+**Tier 3 - Working Memory (Journal + Files):** Session context.
+- `state/journal.jsonl`: Unified conversation/tool log
+- `state/inbox.md`, `state/today.md`: Working files
+- Recent context auto-injected from journal
+
+### Agent Loop
+
+The agent loop (`agent/loop.py`) calls Anthropic directly:
+1. Load memory blocks from Letta
+2. Build system prompt with blocks embedded
+3. Call Claude Opus 4.5 with tools
+4. Execute tool calls locally
+5. Log everything to journal.jsonl
+
+**Key file:** `src/rubber_duck/integrations/memory.py` - Letta agent/memory management
 
 ### Agent Tools
 
-The bot uses a local agent loop with Claude that has access to tools defined in `src/rubber_duck/agent/tools.py`.
+All tools execute locally in the Python process (not in Letta's sandbox). Defined in `src/rubber_duck/agent/tools.py`.
 
 **Available tools:**
 - **File ops**: `read_file`, `write_file`, `list_directory`
@@ -40,24 +61,24 @@ The bot uses a local agent loop with Claude that has access to tools defined in 
 **Key files:**
 ```
 src/rubber_duck/agent/
-├── tools.py                    # All tool definitions + schemas
-├── loop.py                     # Agent execution loop
+├── loop.py                     # Agent loop: Anthropic calls + tool execution
+├── tools.py                    # Tool definitions, schemas, execute_tool()
 └── utils.py                    # Async helpers
 
 src/rubber_duck/integrations/
-├── memory.py                   # Letta memory/agent management
+├── memory.py                   # Letta client, memory block management
 ├── todoist.py                  # Todoist API client
 ├── gcal.py                     # Google Calendar integration
 └── tools/
-    ├── morning_planning.py     # GTD morning workflow implementation
-    └── weekly_review.py        # GTD weekly review implementation
+    ├── morning_planning.py     # GTD morning workflow
+    └── weekly_review.py        # GTD weekly review
 ```
 
 **To add a new tool:**
 1. Add function to `agent/tools.py`
 2. Add schema to `TOOL_SCHEMAS` list
 3. Add to `TOOL_FUNCTIONS` dict
-4. Update system prompt in `memory.py` if agent needs usage instructions
+4. Update system prompt in `loop.py:_build_system_prompt()` if needed
 
 ### GTD Workflows
 
