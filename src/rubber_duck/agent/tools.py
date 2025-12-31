@@ -801,15 +801,21 @@ def run_weekly_review() -> str:
 # Self-Modification Tools
 # =============================================================================
 
-def restart_self() -> str:
+def restart_self(confirm: str = "") -> str:
     """Restart the bot process to reload code after git_push.
 
     ONLY use this immediately after git_push succeeds. This restarts the bot
     to pick up code changes you just pushed. Do NOT use for any other purpose.
 
+    Args:
+        confirm: Must be exactly "I just pushed code" to proceed.
+
     Returns:
-        This function does not return - the process is replaced.
+        Error message if confirm is wrong, otherwise does not return.
     """
+    if confirm != "I just pushed code":
+        return "Error: restart_self requires confirm='I just pushed code'. Only use after git_push."
+
     import sys
     import os
 
@@ -1300,8 +1306,17 @@ TOOL_SCHEMAS = [
     # Self-modification
     {
         "name": "restart_self",
-        "description": "Restart the bot to pick up code changes. Use after committing and pushing changes.",
-        "input_schema": {"type": "object", "properties": {}, "required": []},
+        "description": "Restart the bot to reload code. REQUIRES confirm='I just pushed code' as a safety check.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "confirm": {
+                    "type": "string",
+                    "description": "Must be exactly 'I just pushed code' to confirm this action.",
+                }
+            },
+            "required": ["confirm"],
+        },
     },
     # Issue tracking (bd)
     {
