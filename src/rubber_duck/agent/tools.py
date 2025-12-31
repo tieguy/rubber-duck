@@ -519,9 +519,18 @@ def list_todoist_projects() -> str:
         return "Error: Todoist not configured"
 
     try:
-        projects = run_async(
-            asyncio.to_thread(client.get_projects)
+        # get_projects may return Iterator[list[Project]], flatten it
+        result = run_async(
+            asyncio.to_thread(lambda: list(client.get_projects()))
         )
+
+        # Flatten if nested
+        projects = []
+        for item in result:
+            if isinstance(item, list):
+                projects.extend(item)
+            else:
+                projects.append(item)
 
         if not projects:
             return "No projects found"
@@ -529,7 +538,9 @@ def list_todoist_projects() -> str:
         lines = ["Projects:"]
         for p in projects:
             indent = "  " if getattr(p, 'parent_id', None) else ""
-            lines.append(f"{indent}- {p.name} [ID:{p.id}]")
+            name = getattr(p, 'name', str(p))
+            pid = getattr(p, 'id', 'unknown')
+            lines.append(f"{indent}- {name} [ID:{pid}]")
 
         return "\n".join(lines)
     except Exception as e:
