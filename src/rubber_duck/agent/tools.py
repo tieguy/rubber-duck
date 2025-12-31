@@ -283,17 +283,22 @@ def search_memory(query: str) -> str:
         if not agent_id:
             return "Error: Could not get agent"
 
-        results = client.agents.passages.search(
+        response = client.agents.passages.search(
             agent_id=agent_id,
             query=query,
         )
 
-        if not results:
+        # Handle PassageSearchResponse - extract passages list
+        passages = getattr(response, 'passages', None) or getattr(response, 'results', None) or []
+        if hasattr(response, '__iter__') and not passages:
+            passages = list(response)
+
+        if not passages:
             return "No results found"
 
-        lines = [f"Found {len(results)} result(s):"]
-        for r in results:
-            text = r.content if hasattr(r, 'content') else str(r)
+        lines = [f"Found {len(passages)} result(s):"]
+        for r in passages:
+            text = getattr(r, 'content', None) or getattr(r, 'text', None) or str(r)
             lines.append(f"- {text[:200]}...")
         return "\n".join(lines)
     except Exception as e:
