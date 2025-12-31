@@ -19,41 +19,45 @@ See `docs/plans/2025-12-25-rubber-duck-design.md` for full architecture.
 
 ### Letta Integration
 
-The bot uses Letta Cloud as the conversational brain. Letta provides:
-- Persistent memory across conversations
-- Claude LLM for responses
-- Custom tool execution in a sandboxed environment
+The bot uses Letta Cloud for persistent memory across conversations. Letta stores:
+- Memory blocks (persona, patterns, current_focus, etc.)
+- Archival memory (searchable long-term storage)
+
+**Key file:** `src/rubber_duck/integrations/memory.py` - Agent management, system prompt
+
+### Agent Tools
+
+The bot uses a local agent loop with Claude that has access to tools defined in `src/rubber_duck/agent/tools.py`.
+
+**Available tools:**
+- **File ops**: `read_file`, `write_file`, `list_directory`
+- **Git**: `git_status`, `git_commit`
+- **Memory**: `get_memory_blocks`, `set_memory_block`, `search_memory`, `archive_to_memory`, `read_journal`
+- **Todoist**: `query_todoist`, `create_todoist_task`, `complete_todoist_task`, `update_todoist_task`, `move_todoist_task`, `list_todoist_projects`
+- **Calendar**: `query_gcal`
+- **GTD workflows**: `run_morning_planning`, `run_weekly_review`
 
 **Key files:**
-- `src/rubber_duck/integrations/memory.py` - Letta agent management, system prompt
-- `src/rubber_duck/integrations/letta_tools.py` - Tool registration and loading
-- `src/rubber_duck/integrations/tools/` - Individual tool source files
-
-### Letta Tools
-
-Tools are Python functions that run in Letta's sandbox. They must be self-contained (no imports from our codebase).
-
-**Tool structure:**
 ```
+src/rubber_duck/agent/
+├── tools.py                    # All tool definitions + schemas
+├── loop.py                     # Agent execution loop
+└── utils.py                    # Async helpers
+
 src/rubber_duck/integrations/
-├── memory.py                   # Agent management, system prompt (defines available tools)
+├── memory.py                   # Letta memory/agent management
+├── todoist.py                  # Todoist API client
+├── gcal.py                     # Google Calendar integration
 └── tools/
-    ├── morning_planning.py     # GTD morning workflow
-    └── weekly_review.py        # GTD weekly review
+    ├── morning_planning.py     # GTD morning workflow implementation
+    └── weekly_review.py        # GTD weekly review implementation
 ```
 
-**Note:** Many tools described in the system prompt (Todoist CRUD, project operations) are provided by Letta Cloud's hosted tools, not local files. The `tools/` directory contains only custom workflow tools.
-
-**To add a new custom tool:**
-1. Create a `.py` file in `tools/` with a single function
-2. Register it with Letta Cloud (see archive/letta-sandbox-tools/ for examples)
-3. Update the system prompt in `memory.py` if the agent needs instructions
-
-**Constraints:**
-- Tools must be self-contained (imports inside the function)
-- Only `requests` is available (declared in pip_requirements)
-- Tool must return a string
-- Docstring tells the agent when/how to use it
+**To add a new tool:**
+1. Add function to `agent/tools.py`
+2. Add schema to `TOOL_SCHEMAS` list
+3. Add to `TOOL_FUNCTIONS` dict
+4. Update system prompt in `memory.py` if agent needs usage instructions
 
 ### GTD Workflows
 
