@@ -7,9 +7,8 @@ RUN apt-get update && \
     apt-get install -y git curl && \
     rm -rf /var/lib/apt/lists/*
 
-# Install bd CLI
-RUN curl -sSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash && \
-    mv /root/.local/bin/bd /usr/local/bin/bd
+# Install bd CLI (script installs directly to /usr/local/bin)
+RUN curl -sSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash
 
 # Install uv for fast dependency management
 RUN pip install uv
