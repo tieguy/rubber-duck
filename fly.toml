@@ -23,7 +23,7 @@ primary_region = "lax"
 
 # Keep the bot running (no auto-stop since there's no HTTP service)
 [processes]
-  app = "uv run python -m rubber_duck"
+  app = "./entrypoint.sh"
 
 # Restart policy - always restart on failure
 [[restart]]
