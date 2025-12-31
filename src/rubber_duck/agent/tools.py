@@ -371,14 +371,15 @@ def read_journal(limit: int = 50) -> str:
             ts = entry.get("ts", "")[:19]  # Trim to readable timestamp
             event_type = entry.get("type", "unknown")
             if event_type == "user_message":
-                content = entry.get("content", "")[:100]
+                content = entry.get("content", "")[:500]
                 lines.append(f"[{ts}] USER: {content}")
             elif event_type == "assistant_message":
-                content = entry.get("content", "")[:100]
+                content = entry.get("content", "")[:1000]  # Longer for assistant responses
                 lines.append(f"[{ts}] ASSISTANT: {content}")
             elif event_type == "tool_call":
                 tool = entry.get("tool", "")
-                lines.append(f"[{ts}] TOOL: {tool}")
+                args = str(entry.get("args", {}))[:200]
+                lines.append(f"[{ts}] TOOL: {tool}({args})")
             # Skip tool_result for brevity
 
         return "\n".join(lines)
