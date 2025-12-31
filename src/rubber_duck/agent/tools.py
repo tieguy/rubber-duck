@@ -215,11 +215,13 @@ def get_memory_blocks() -> str:
         if not agent_id:
             return "Error: Could not get agent"
 
-        # Get memory blocks
-        agent = client.agents.retrieve(agent_id=agent_id)
+        # Get memory blocks via blocks API
+        block_list = client.agents.blocks.list(agent_id=agent_id)
         blocks = {}
-        for block in agent.memory.blocks:
-            blocks[block.label] = block.value
+        for block in block_list:
+            label = getattr(block, 'label', None) or getattr(block, 'name', 'unknown')
+            value = getattr(block, 'value', '') or getattr(block, 'content', '')
+            blocks[label] = value
 
         return json.dumps(blocks, indent=2)
     except Exception as e:
@@ -247,18 +249,13 @@ def set_memory_block(name: str, value: str) -> str:
         if not agent_id:
             return "Error: Could not get agent"
 
-        # Find and update block
-        agent = client.agents.retrieve(agent_id=agent_id)
-        for block in agent.memory.blocks:
-            if block.label == name:
-                client.agents.memory.update_block(
-                    agent_id=agent_id,
-                    block_label=name,
-                    value=value,
-                )
-                return f"Updated memory block '{name}'"
-
-        return f"Error: Block '{name}' not found"
+        # Update block directly
+        client.agents.blocks.update(
+            agent_id=agent_id,
+            block_label=name,
+            value=value,
+        )
+        return f"Updated memory block '{name}'"
     except Exception as e:
         return f"Error updating memory block: {e}"
 

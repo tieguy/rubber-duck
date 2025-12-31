@@ -123,8 +123,13 @@ def _get_memory_blocks() -> dict:
         if not agent_id:
             return {}
 
-        agent = client.agents.retrieve(agent_id=agent_id)
-        return {block.label: block.value for block in agent.memory.blocks}
+        block_list = client.agents.blocks.list(agent_id=agent_id)
+        blocks = {}
+        for block in block_list:
+            label = getattr(block, 'label', None) or getattr(block, 'name', 'unknown')
+            value = getattr(block, 'value', '') or getattr(block, 'content', '')
+            blocks[label] = value
+        return blocks
     except Exception as e:
         logger.warning(f"Could not load memory blocks: {e}")
         return {}
