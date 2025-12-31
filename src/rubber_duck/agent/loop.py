@@ -10,6 +10,7 @@ Implements the Strix-style agent pattern:
 import json
 import logging
 import os
+import re
 from datetime import datetime
 from pathlib import Path
 
@@ -21,9 +22,35 @@ from rubber_duck.agent.utils import run_async
 logger = logging.getLogger(__name__)
 
 # Model configuration
-MODEL = "claude-opus-4-5-20251101"  # Opus 4.5 for best reasoning
+MODEL_OPUS = "claude-opus-4-5-20251101"  # Best reasoning, use for quality interactions
+MODEL_SONNET = "claude-sonnet-4-20250514"  # Fast execution, use for simple tasks
 MAX_TOOL_CALLS = 20
 TIMEOUT = 60
+
+# Patterns for simple execution tasks (use Sonnet)
+SIMPLE_TASK_PATTERNS = [
+    r"^(complete|close|finish|done|check off)\b",  # Task completion
+    r"^(add|create|make)\s+(a\s+)?(task|todo|reminder)\b",  # Task creation
+    r"^query\s+",  # Raw queries
+]
+
+
+def _select_model(user_message: str, is_nudge: bool = False) -> str:
+    """Select model based on task complexity.
+
+    Uses Opus for quality interactions (nudges, advice, planning).
+    Uses Sonnet for pure execution (complete task, add task, raw queries).
+    """
+    if is_nudge:
+        return MODEL_OPUS  # Nudges always need quality thinking
+
+    msg_lower = user_message.lower().strip()
+    for pattern in SIMPLE_TASK_PATTERNS:
+        if re.match(pattern, msg_lower):
+            return MODEL_SONNET
+
+    # Default to Opus for everything else (advice, questions, show/list, etc.)
+    return MODEL_OPUS
 
 # Journal for unified logging
 JOURNAL_PATH = "state/journal.jsonl"
@@ -202,12 +229,13 @@ def _get_memory_blocks() -> dict:
         return {}
 
 
-async def run_agent_loop(user_message: str, context: str = "") -> str:
+async def run_agent_loop(user_message: str, context: str = "", is_nudge: bool = False) -> str:
     """Run the agent loop for a user message.
 
     Args:
         user_message: The user's message
         context: Optional additional context
+        is_nudge: Whether this is a scheduled nudge (always uses Opus)
 
     Returns:
         Agent's response text
@@ -217,6 +245,10 @@ async def run_agent_loop(user_message: str, context: str = "") -> str:
         return "I'm not properly configured. ANTHROPIC_API_KEY is missing."
 
     client = AsyncAnthropic(api_key=api_key)
+
+    # Select model based on task complexity
+    model = _select_model(user_message, is_nudge=is_nudge)
+    logger.info(f"Using model: {model}")
 
     # Load memory blocks for system prompt
     memory_blocks = _get_memory_blocks()
@@ -240,7 +272,7 @@ async def run_agent_loop(user_message: str, context: str = "") -> str:
     while tool_calls < MAX_TOOL_CALLS:
         try:
             response = await client.messages.create(
-                model=MODEL,
+                model=model,
                 max_tokens=4096,
                 system=system_prompt,
                 tools=TOOL_SCHEMAS,
@@ -317,4 +349,4 @@ Focus: {prompt_hint}
 Query Todoist with filter "{context_query}" if relevant, then write a brief,
 friendly nudge (2-3 sentences). Be specific if there are tasks. Don't be preachy."""
 
-    return await run_agent_loop(prompt, context=f"Scheduled nudge: {name}")
+    return await run_agent_loop(prompt, context=f"Scheduled nudge: {name}", is_nudge=True)
