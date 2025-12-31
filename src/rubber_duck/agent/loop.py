@@ -27,6 +27,71 @@ TIMEOUT = 60
 
 # Journal for unified logging
 JOURNAL_PATH = "state/journal.jsonl"
+RECENT_CONTEXT_LIMIT = 3  # Number of recent exchanges to inject as context
+
+
+def _get_recent_context() -> list[dict]:
+    """Read recent conversation turns from journal for context.
+
+    Returns list of message dicts suitable for Anthropic messages API.
+    """
+    repo_root = Path(__file__).parent.parent.parent.parent
+    journal = repo_root / JOURNAL_PATH
+
+    if not journal.exists():
+        return []
+
+    try:
+        with open(journal) as f:
+            lines = f.readlines()
+
+        # Get recent entries (user_message and assistant_message only)
+        messages = []
+        for line in lines[-20:]:  # Look at last 20 entries to find recent exchanges
+            try:
+                entry = json.loads(line.strip())
+                if entry.get("type") == "user_message":
+                    content = entry.get("content", "")
+                    if content:
+                        messages.append({"role": "user", "content": content})
+                elif entry.get("type") == "assistant_message":
+                    content = entry.get("content", "")
+                    if content:
+                        messages.append({"role": "assistant", "content": content})
+            except json.JSONDecodeError:
+                continue
+
+        # Return last N exchanges (user + assistant pairs)
+        # Ensure we start with a user message and alternate properly
+        recent = messages[-(RECENT_CONTEXT_LIMIT * 2):]
+
+        # Validate message alternation (Anthropic requires user/assistant/user/...)
+        if not recent:
+            return []
+
+        # Find first user message to start from
+        start_idx = 0
+        for i, msg in enumerate(recent):
+            if msg["role"] == "user":
+                start_idx = i
+                break
+
+        validated = []
+        expected_role = "user"
+        for msg in recent[start_idx:]:
+            if msg["role"] == expected_role:
+                validated.append(msg)
+                expected_role = "assistant" if expected_role == "user" else "user"
+
+        # Must end with assistant message (so we can add new user message)
+        if validated and validated[-1]["role"] == "user":
+            validated = validated[:-1]
+
+        return validated
+
+    except Exception as e:
+        logger.warning(f"Could not read journal for context: {e}")
+        return []
 
 
 def _log_to_journal(event_type: str, data: dict) -> None:
@@ -94,8 +159,8 @@ Update with `set_memory_block` when you learn something that should always be tr
 - `read_file("state/today.md")`: Current priorities
 
 ## Key Principles
-- Your memory resets each message - if you didn't write it down, you won't remember
-- When you learn something important, archive it immediately
+- You automatically receive the last few conversation turns as context
+- For longer-term memory, archive important information to Tier 2
 - Search archival memory when asked about past conversations
 - Update memory blocks for persistent identity changes
 - Commit important file changes to git for provenance
@@ -161,7 +226,9 @@ async def run_agent_loop(user_message: str, context: str = "") -> str:
     else:
         full_message = user_message
 
-    messages = [{"role": "user", "content": full_message}]
+    # Start with recent conversation context from journal
+    messages = _get_recent_context()
+    messages.append({"role": "user", "content": full_message})
 
     # Log user message
     _log_to_journal("user_message", {"content": user_message, "context": context})
