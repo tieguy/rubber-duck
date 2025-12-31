@@ -168,7 +168,7 @@ Update with `set_memory_block` when you learn something that should always be tr
 ## Tools
 - File ops: read_file, write_file, edit_file, list_directory
 - Git: git_status, git_commit, git_push, git_pull
-- Self-modify: edit_file (for code changes), git_commit, git_push, restart_self (apply changes)
+- Self-modify: edit_file (for code changes), git_commit, git_push, restart_self (ONLY after git_push to reload code)
 - Issues: bd_ready, bd_show, bd_update, bd_close, bd_sync, bd_create
 - Memory: get_memory_blocks, set_memory_block, search_memory, archive_to_memory, read_journal
 - Tasks: query_todoist, create_todoist_task, complete_todoist_task

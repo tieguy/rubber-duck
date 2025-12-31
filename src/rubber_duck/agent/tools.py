@@ -802,10 +802,10 @@ def run_weekly_review() -> str:
 # =============================================================================
 
 def restart_self() -> str:
-    """Restart the bot process to pick up code changes.
+    """Restart the bot process to reload code after git_push.
 
-    Use this after committing and pushing changes to reload with new code.
-    The bot will restart and pick up any modifications made to the codebase.
+    ONLY use this immediately after git_push succeeds. This restarts the bot
+    to pick up code changes you just pushed. Do NOT use for any other purpose.
 
     Returns:
         This function does not return - the process is replaced.
