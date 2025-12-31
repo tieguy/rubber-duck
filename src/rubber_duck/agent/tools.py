@@ -506,6 +506,83 @@ def complete_todoist_task(task_id: str) -> str:
         return f"Error completing task: {e}"
 
 
+def list_todoist_projects() -> str:
+    """List all Todoist projects with their IDs.
+
+    Returns:
+        Formatted project list with IDs
+    """
+    from rubber_duck.integrations.todoist import get_client
+
+    client = get_client()
+    if not client:
+        return "Error: Todoist not configured"
+
+    try:
+        projects = run_async(
+            asyncio.to_thread(client.get_projects)
+        )
+
+        if not projects:
+            return "No projects found"
+
+        lines = ["Projects:"]
+        for p in projects:
+            indent = "  " if getattr(p, 'parent_id', None) else ""
+            lines.append(f"{indent}- {p.name} [ID:{p.id}]")
+
+        return "\n".join(lines)
+    except Exception as e:
+        return f"Error listing projects: {e}"
+
+
+def update_todoist_task(
+    task_id: str,
+    content: str | None = None,
+    project_id: str | None = None,
+    due_string: str | None = None,
+    labels: list[str] | None = None,
+) -> str:
+    """Update an existing Todoist task.
+
+    Args:
+        task_id: Task ID to update
+        content: New task content (optional)
+        project_id: Move to this project (optional)
+        due_string: New due date (optional)
+        labels: New labels (optional)
+
+    Returns:
+        Success or error message
+    """
+    from rubber_duck.integrations.todoist import get_client
+
+    client = get_client()
+    if not client:
+        return "Error: Todoist not configured"
+
+    try:
+        kwargs = {}
+        if content:
+            kwargs["content"] = content
+        if project_id:
+            kwargs["project_id"] = project_id
+        if due_string:
+            kwargs["due_string"] = due_string
+        if labels is not None:
+            kwargs["labels"] = labels
+
+        if not kwargs:
+            return "Error: No updates specified"
+
+        run_async(
+            asyncio.to_thread(client.update_task, task_id=task_id, **kwargs)
+        )
+        return f"Updated task {task_id}"
+    except Exception as e:
+        return f"Error updating task: {e}"
+
+
 # =============================================================================
 # Google Calendar Operations
 # =============================================================================
@@ -773,6 +850,46 @@ TOOL_SCHEMAS = [
         },
     },
     {
+        "name": "list_todoist_projects",
+        "description": "List all Todoist projects with their IDs. Use to find project IDs for moving tasks.",
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    },
+    {
+        "name": "update_todoist_task",
+        "description": "Update an existing task - change content, move to different project, reschedule, or change labels.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "task_id": {
+                    "type": "string",
+                    "description": "Task ID to update",
+                },
+                "content": {
+                    "type": "string",
+                    "description": "New task content (optional)",
+                },
+                "project_id": {
+                    "type": "string",
+                    "description": "Project ID to move task to (optional)",
+                },
+                "due_string": {
+                    "type": "string",
+                    "description": "New due date (optional)",
+                },
+                "labels": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "New labels (optional)",
+                },
+            },
+            "required": ["task_id"],
+        },
+    },
+    {
         "name": "query_gcal",
         "description": "Query Google Calendar events for upcoming days.",
         "input_schema": {
@@ -813,6 +930,8 @@ TOOL_FUNCTIONS = {
     "query_todoist": query_todoist,
     "create_todoist_task": create_todoist_task,
     "complete_todoist_task": complete_todoist_task,
+    "list_todoist_projects": list_todoist_projects,
+    "update_todoist_task": update_todoist_task,
     "query_gcal": query_gcal,
     "run_morning_planning": run_morning_planning,
     "run_weekly_review": run_weekly_review,
