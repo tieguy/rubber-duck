@@ -21,7 +21,7 @@ from rubber_duck.agent.utils import run_async
 logger = logging.getLogger(__name__)
 
 # Model configuration
-MODEL = "claude-opus-4-5-20250114"  # Opus 4.5 for best reasoning
+MODEL = "claude-opus-4-5-20251101"  # Opus 4.5 for best reasoning
 MAX_TOOL_CALLS = 20
 TIMEOUT = 60
 
@@ -99,7 +99,7 @@ def _get_memory_blocks() -> dict:
         if not agent_id:
             return {}
 
-        agent = client.agents.get(agent_id)
+        agent = client.agents.retrieve(agent_id=agent_id)
         return {block.label: block.value for block in agent.memory.blocks}
     except Exception as e:
         logger.warning(f"Could not load memory blocks: {e}")

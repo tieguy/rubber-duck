@@ -216,7 +216,7 @@ def get_memory_blocks() -> str:
             return "Error: Could not get agent"
 
         # Get memory blocks
-        agent = client.agents.get(agent_id)
+        agent = client.agents.retrieve(agent_id=agent_id)
         blocks = {}
         for block in agent.memory.blocks:
             blocks[block.label] = block.value
@@ -248,7 +248,7 @@ def set_memory_block(name: str, value: str) -> str:
             return "Error: Could not get agent"
 
         # Find and update block
-        agent = client.agents.get(agent_id)
+        agent = client.agents.retrieve(agent_id=agent_id)
         for block in agent.memory.blocks:
             if block.label == name:
                 client.agents.memory.update_block(
