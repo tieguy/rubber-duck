@@ -33,6 +33,13 @@ if [ -n "$GITHUB_TOKEN" ]; then
     git remote set-url origin "https://${GITHUB_TOKEN}@github.com/tieguy/rubber-duck.git"
 fi
 
+# Link persistent state directory
+# fly.toml mounts persistent storage at /app/state
+# Code expects state at /app/repo/state (relative to cloned repo)
+echo "Linking persistent state..."
+rm -rf "$REPO_DIR/state" 2>/dev/null || true
+ln -s /app/state "$REPO_DIR/state"
+
 # Install/update dependencies
 echo "Installing dependencies..."
 uv sync --frozen
