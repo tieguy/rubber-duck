@@ -325,10 +325,18 @@ def archive_to_memory(content: str) -> str:
         if not agent_id:
             return "Error: Could not get agent"
 
-        client.agents.passages.insert(
-            agent_id=agent_id,
-            content=content,
-        )
+        # Try different method names as SDK may vary
+        passages = client.agents.passages
+        if hasattr(passages, 'create'):
+            passages.create(agent_id=agent_id, content=content)
+        elif hasattr(passages, 'insert'):
+            passages.insert(agent_id=agent_id, content=content)
+        elif hasattr(passages, 'add'):
+            passages.add(agent_id=agent_id, content=content)
+        else:
+            # List available methods for debugging
+            methods = [m for m in dir(passages) if not m.startswith('_')]
+            return f"Error: No insert method found. Available: {methods}"
         return f"Archived to memory: {content[:100]}..."
     except Exception as e:
         return f"Error archiving to memory: {e}"
