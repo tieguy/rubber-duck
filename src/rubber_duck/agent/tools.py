@@ -193,6 +193,52 @@ def git_commit(message: str, paths: list[str] | None = None) -> str:
         return f"Error committing: {e}"
 
 
+def git_push() -> str:
+    """Push commits to remote repository.
+
+    Returns:
+        Success message or error
+    """
+    try:
+        result = subprocess.run(
+            ["git", "push"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+
+        if result.returncode != 0:
+            return f"Error pushing: {result.stderr}"
+
+        return f"Pushed to remote: {result.stdout or 'success'}"
+    except Exception as e:
+        return f"Error pushing: {e}"
+
+
+def git_pull() -> str:
+    """Pull latest changes from remote repository.
+
+    Returns:
+        Success message or error
+    """
+    try:
+        result = subprocess.run(
+            ["git", "pull", "--rebase"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+
+        if result.returncode != 0:
+            return f"Error pulling: {result.stderr}"
+
+        return f"Pulled from remote: {result.stdout or 'success'}"
+    except Exception as e:
+        return f"Error pulling: {e}"
+
+
 # =============================================================================
 # Letta Memory Operations
 # =============================================================================
@@ -707,6 +753,192 @@ def run_weekly_review() -> str:
 
 
 # =============================================================================
+# Self-Modification Tools
+# =============================================================================
+
+def restart_self() -> str:
+    """Restart the bot process to pick up code changes.
+
+    Use this after committing and pushing changes to reload with new code.
+    The bot will restart and pick up any modifications made to the codebase.
+
+    Returns:
+        This function does not return - the process is replaced.
+    """
+    import sys
+    import os
+
+    logger.info("Restarting bot process to pick up code changes...")
+
+    # Flush any pending output
+    sys.stdout.flush()
+    sys.stderr.flush()
+
+    # Replace current process with fresh instance
+    os.execv(sys.executable, [sys.executable, "-m", "rubber_duck"])
+
+    # This line is never reached
+    return "Restarting..."
+
+
+# =============================================================================
+# Issue Tracking (bd) Tools
+# =============================================================================
+
+def bd_ready() -> str:
+    """List issues ready to work on.
+
+    Returns:
+        List of ready issues or error message
+    """
+    try:
+        result = subprocess.run(
+            ["bd", "ready"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        return result.stdout or result.stderr or "No ready issues"
+    except FileNotFoundError:
+        return "Error: bd CLI not installed"
+    except Exception as e:
+        return f"Error running bd ready: {e}"
+
+
+def bd_show(issue_id: str) -> str:
+    """Show details of a specific issue.
+
+    Args:
+        issue_id: The issue ID to show
+
+    Returns:
+        Issue details or error message
+    """
+    try:
+        result = subprocess.run(
+            ["bd", "show", issue_id],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        return result.stdout or result.stderr or f"No issue found: {issue_id}"
+    except FileNotFoundError:
+        return "Error: bd CLI not installed"
+    except Exception as e:
+        return f"Error running bd show: {e}"
+
+
+def bd_update(issue_id: str, status: str) -> str:
+    """Update the status of an issue.
+
+    Args:
+        issue_id: The issue ID to update
+        status: New status (e.g., 'in_progress', 'blocked', 'done')
+
+    Returns:
+        Success or error message
+    """
+    try:
+        result = subprocess.run(
+            ["bd", "update", issue_id, "--status", status],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if result.returncode != 0:
+            return f"Error: {result.stderr}"
+        return result.stdout or f"Updated {issue_id} to {status}"
+    except FileNotFoundError:
+        return "Error: bd CLI not installed"
+    except Exception as e:
+        return f"Error running bd update: {e}"
+
+
+def bd_close(issue_id: str) -> str:
+    """Close a completed issue.
+
+    Args:
+        issue_id: The issue ID to close
+
+    Returns:
+        Success or error message
+    """
+    try:
+        result = subprocess.run(
+            ["bd", "close", issue_id],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if result.returncode != 0:
+            return f"Error: {result.stderr}"
+        return result.stdout or f"Closed issue {issue_id}"
+    except FileNotFoundError:
+        return "Error: bd CLI not installed"
+    except Exception as e:
+        return f"Error running bd close: {e}"
+
+
+def bd_sync() -> str:
+    """Sync bd issues with git.
+
+    Returns:
+        Sync result or error message
+    """
+    try:
+        result = subprocess.run(
+            ["bd", "sync"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if result.returncode != 0:
+            return f"Error: {result.stderr}"
+        return result.stdout or "Synced"
+    except FileNotFoundError:
+        return "Error: bd CLI not installed"
+    except Exception as e:
+        return f"Error running bd sync: {e}"
+
+
+def bd_create(title: str, description: str = "", priority: str = "medium") -> str:
+    """Create a new issue.
+
+    Args:
+        title: Issue title
+        description: Issue description (optional)
+        priority: Priority level (low, medium, high)
+
+    Returns:
+        Created issue ID or error message
+    """
+    try:
+        cmd = ["bd", "create", "--title", title, "--priority", priority]
+        if description:
+            cmd.extend(["--description", description])
+
+        result = subprocess.run(
+            cmd,
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if result.returncode != 0:
+            return f"Error: {result.stderr}"
+        return result.stdout or "Issue created"
+    except FileNotFoundError:
+        return "Error: bd CLI not installed"
+    except Exception as e:
+        return f"Error running bd create: {e}"
+
+
+# =============================================================================
 # Tool Schemas for Anthropic API
 # =============================================================================
 
@@ -987,6 +1219,102 @@ TOOL_SCHEMAS = [
         "description": "Run weekly review - project health, overdue items, waiting-for status.",
         "input_schema": {"type": "object", "properties": {}, "required": []},
     },
+    # Git push/pull
+    {
+        "name": "git_push",
+        "description": "Push commits to remote repository.",
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
+    {
+        "name": "git_pull",
+        "description": "Pull latest changes from remote repository.",
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
+    # Self-modification
+    {
+        "name": "restart_self",
+        "description": "Restart the bot to pick up code changes. Use after committing and pushing changes.",
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
+    # Issue tracking (bd)
+    {
+        "name": "bd_ready",
+        "description": "List issues ready to work on.",
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
+    {
+        "name": "bd_show",
+        "description": "Show details of a specific issue.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "issue_id": {
+                    "type": "string",
+                    "description": "The issue ID to show",
+                }
+            },
+            "required": ["issue_id"],
+        },
+    },
+    {
+        "name": "bd_update",
+        "description": "Update the status of an issue.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "issue_id": {
+                    "type": "string",
+                    "description": "The issue ID to update",
+                },
+                "status": {
+                    "type": "string",
+                    "description": "New status (e.g., 'in_progress', 'blocked', 'done')",
+                },
+            },
+            "required": ["issue_id", "status"],
+        },
+    },
+    {
+        "name": "bd_close",
+        "description": "Close a completed issue.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "issue_id": {
+                    "type": "string",
+                    "description": "The issue ID to close",
+                }
+            },
+            "required": ["issue_id"],
+        },
+    },
+    {
+        "name": "bd_sync",
+        "description": "Sync bd issues with git.",
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
+    {
+        "name": "bd_create",
+        "description": "Create a new issue for tracking work.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "title": {
+                    "type": "string",
+                    "description": "Issue title",
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Issue description (optional)",
+                },
+                "priority": {
+                    "type": "string",
+                    "description": "Priority level: low, medium, high (default: medium)",
+                },
+            },
+            "required": ["title"],
+        },
+    },
 ]
 
 # Map tool names to functions
@@ -996,6 +1324,8 @@ TOOL_FUNCTIONS = {
     "list_directory": list_directory,
     "git_status": git_status,
     "git_commit": git_commit,
+    "git_push": git_push,
+    "git_pull": git_pull,
     "get_memory_blocks": get_memory_blocks,
     "set_memory_block": set_memory_block,
     "search_memory": search_memory,
@@ -1010,6 +1340,13 @@ TOOL_FUNCTIONS = {
     "query_gcal": query_gcal,
     "run_morning_planning": run_morning_planning,
     "run_weekly_review": run_weekly_review,
+    "restart_self": restart_self,
+    "bd_ready": bd_ready,
+    "bd_show": bd_show,
+    "bd_update": bd_update,
+    "bd_close": bd_close,
+    "bd_sync": bd_sync,
+    "bd_create": bd_create,
 }
 
 

@@ -2,18 +2,24 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+# Install system dependencies (git, curl for bd install)
+RUN apt-get update && \
+    apt-get install -y git curl && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install bd CLI
+RUN curl -sSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash && \
+    mv /root/.local/bin/bd /usr/local/bin/bd
+
 # Install uv for fast dependency management
 RUN pip install uv
 
-# Copy dependency files
-COPY pyproject.toml uv.lock* ./
+# Copy entrypoint and dependency files (for initial uv cache)
+COPY entrypoint.sh pyproject.toml uv.lock* ./
+RUN chmod +x entrypoint.sh
 
-# Install dependencies
-RUN uv sync --frozen --no-dev
+# Pre-cache dependencies (speeds up startup)
+RUN uv sync --frozen --no-dev || true
 
-# Copy application code
-COPY src/ src/
-COPY config/ config/
-
-# Run the bot
-CMD ["uv", "run", "python", "-m", "rubber_duck"]
+# The actual code is cloned at runtime via entrypoint.sh
+CMD ["./entrypoint.sh"]
