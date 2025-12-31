@@ -283,10 +283,9 @@ def search_memory(query: str) -> str:
         if not agent_id:
             return "Error: Could not get agent"
 
-        results = client.agents.archival_memory.search(
+        results = client.agents.passages.search(
             agent_id=agent_id,
             query=query,
-            limit=10,
         )
 
         if not results:
@@ -294,7 +293,8 @@ def search_memory(query: str) -> str:
 
         lines = [f"Found {len(results)} result(s):"]
         for r in results:
-            lines.append(f"- {r.text[:200]}...")
+            text = r.content if hasattr(r, 'content') else str(r)
+            lines.append(f"- {text[:200]}...")
         return "\n".join(lines)
     except Exception as e:
         return f"Error searching memory: {e}"
@@ -323,9 +323,9 @@ def archive_to_memory(content: str) -> str:
         if not agent_id:
             return "Error: Could not get agent"
 
-        client.agents.archival_memory.create(
+        client.agents.passages.insert(
             agent_id=agent_id,
-            text=content,
+            content=content,
         )
         return f"Archived to memory: {content[:100]}..."
     except Exception as e:
