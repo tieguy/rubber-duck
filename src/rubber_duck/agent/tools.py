@@ -300,6 +300,92 @@ def search_memory(query: str) -> str:
         return f"Error searching memory: {e}"
 
 
+def archive_to_memory(content: str) -> str:
+    """Archive important information to persistent memory.
+
+    Use this to save insights, patterns, preferences, or context you want
+    to remember across conversations. This is your long-term memory.
+
+    Args:
+        content: Text to archive (be descriptive - include date/context)
+
+    Returns:
+        Success or error message
+    """
+    from rubber_duck.integrations.memory import get_client, get_or_create_agent
+
+    client = get_client()
+    if not client:
+        return "Error: Letta not configured"
+
+    try:
+        agent_id = run_async(get_or_create_agent())
+        if not agent_id:
+            return "Error: Could not get agent"
+
+        client.agents.archival_memory.create(
+            agent_id=agent_id,
+            text=content,
+        )
+        return f"Archived to memory: {content[:100]}..."
+    except Exception as e:
+        return f"Error archiving to memory: {e}"
+
+
+def read_journal(limit: int = 50) -> str:
+    """Read recent entries from the conversation journal.
+
+    The journal contains a log of recent conversations, tool calls,
+    and events. Use this to recall what happened in recent interactions.
+
+    Args:
+        limit: Maximum number of entries to return (default: 50)
+
+    Returns:
+        Recent journal entries or error message
+    """
+    from pathlib import Path
+    import json
+
+    repo_root = Path(__file__).parent.parent.parent.parent
+    journal_path = repo_root / "state" / "journal.jsonl"
+
+    if not journal_path.exists():
+        return "No journal entries yet"
+
+    try:
+        entries = []
+        with open(journal_path, "r") as f:
+            for line in f:
+                if line.strip():
+                    entries.append(json.loads(line))
+
+        # Get last N entries
+        recent = entries[-limit:] if len(entries) > limit else entries
+
+        if not recent:
+            return "No journal entries yet"
+
+        lines = [f"Last {len(recent)} journal entries:"]
+        for entry in recent:
+            ts = entry.get("ts", "")[:19]  # Trim to readable timestamp
+            event_type = entry.get("type", "unknown")
+            if event_type == "user_message":
+                content = entry.get("content", "")[:100]
+                lines.append(f"[{ts}] USER: {content}")
+            elif event_type == "assistant_message":
+                content = entry.get("content", "")[:100]
+                lines.append(f"[{ts}] ASSISTANT: {content}")
+            elif event_type == "tool_call":
+                tool = entry.get("tool", "")
+                lines.append(f"[{ts}] TOOL: {tool}")
+            # Skip tool_result for brevity
+
+        return "\n".join(lines)
+    except Exception as e:
+        return f"Error reading journal: {e}"
+
+
 # =============================================================================
 # Todoist Operations (wrap existing integration)
 # =============================================================================
@@ -593,6 +679,34 @@ TOOL_SCHEMAS = [
         },
     },
     {
+        "name": "archive_to_memory",
+        "description": "Save important information to persistent long-term memory. Use for insights, patterns, preferences, or context to remember across conversations.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string",
+                    "description": "Text to archive (include date/context for searchability)",
+                }
+            },
+            "required": ["content"],
+        },
+    },
+    {
+        "name": "read_journal",
+        "description": "Read recent conversation history from the journal. Shows user messages, your responses, and tool calls.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer",
+                    "description": "Max entries to return (default: 50)",
+                }
+            },
+            "required": [],
+        },
+    },
+    {
         "name": "query_todoist",
         "description": "Query tasks from Todoist. Filters: 'today', 'overdue', '@label', '#Project', 'all'",
         "input_schema": {
@@ -683,6 +797,8 @@ TOOL_FUNCTIONS = {
     "get_memory_blocks": get_memory_blocks,
     "set_memory_block": set_memory_block,
     "search_memory": search_memory,
+    "archive_to_memory": archive_to_memory,
+    "read_journal": read_journal,
     "query_todoist": query_todoist,
     "create_todoist_task": create_todoist_task,
     "complete_todoist_task": complete_todoist_task,
