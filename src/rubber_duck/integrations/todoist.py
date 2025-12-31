@@ -95,3 +95,27 @@ async def create_task(
     except Exception as e:
         logger.exception(f"Error creating Todoist task: {e}")
         return None
+
+
+async def complete_task(task_id: str) -> bool:
+    """Mark a task as complete in Todoist.
+
+    For recurring tasks, this completes the current occurrence and
+    schedules the next one automatically.
+
+    Args:
+        task_id: The ID of the task to complete
+
+    Returns:
+        True if successful, False otherwise
+    """
+    client = get_client()
+    if not client:
+        return False
+
+    try:
+        await asyncio.to_thread(client.close_task, task_id=task_id)
+        return True
+    except Exception as e:
+        logger.exception(f"Error completing Todoist task: {e}")
+        return False
