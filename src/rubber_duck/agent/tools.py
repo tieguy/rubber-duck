@@ -115,6 +115,51 @@ def list_directory(path: str = ".") -> str:
         return f"Error listing directory: {e}"
 
 
+def edit_file(path: str, old_text: str, new_text: str) -> str:
+    """Edit a file by replacing text (like sed).
+
+    This is more efficient than read+write for small changes.
+    The old_text must match exactly (including whitespace).
+
+    Args:
+        path: Relative path from repository root
+        old_text: Exact text to find and replace
+        new_text: Text to replace it with
+
+    Returns:
+        Success message or error
+    """
+    if not _is_safe_path(path):
+        return f"Error: Cannot edit protected path: {path}"
+
+    full_path = REPO_ROOT / path
+    if not full_path.exists():
+        return f"Error: File not found: {path}"
+    if not full_path.is_file():
+        return f"Error: Not a file: {path}"
+
+    try:
+        content = full_path.read_text()
+
+        if old_text not in content:
+            # Show a snippet to help debug
+            snippet = content[:500] + "..." if len(content) > 500 else content
+            return f"Error: old_text not found in file. File starts with:\n{snippet}"
+
+        # Count occurrences
+        count = content.count(old_text)
+        if count > 1:
+            return f"Error: old_text found {count} times. Must be unique. Be more specific."
+
+        # Perform replacement
+        new_content = content.replace(old_text, new_text, 1)
+        full_path.write_text(new_content)
+
+        return f"Successfully edited {path}: replaced {len(old_text)} chars with {len(new_text)} chars"
+    except Exception as e:
+        return f"Error editing file: {e}"
+
+
 # =============================================================================
 # Git Operations
 # =============================================================================
@@ -990,6 +1035,28 @@ TOOL_SCHEMAS = [
         },
     },
     {
+        "name": "edit_file",
+        "description": "Edit a file by replacing text (like sed). More efficient than read+write for small changes. old_text must match exactly and be unique.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Relative path from repository root",
+                },
+                "old_text": {
+                    "type": "string",
+                    "description": "Exact text to find (must be unique in file)",
+                },
+                "new_text": {
+                    "type": "string",
+                    "description": "Text to replace it with",
+                },
+            },
+            "required": ["path", "old_text", "new_text"],
+        },
+    },
+    {
         "name": "git_status",
         "description": "See current git status - what files have changed.",
         "input_schema": {
@@ -1322,6 +1389,7 @@ TOOL_FUNCTIONS = {
     "read_file": read_file,
     "write_file": write_file,
     "list_directory": list_directory,
+    "edit_file": edit_file,
     "git_status": git_status,
     "git_commit": git_commit,
     "git_push": git_push,

@@ -13,7 +13,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-from anthropic import Anthropic
+from anthropic import AsyncAnthropic
 
 from rubber_duck.agent.tools import TOOL_SCHEMAS, execute_tool
 from rubber_duck.agent.utils import run_async
@@ -166,8 +166,10 @@ Update with `set_memory_block` when you learn something that should always be tr
 - Commit important file changes to git for provenance
 
 ## Tools
-- File ops: read_file, write_file, list_directory
-- Git: git_status, git_commit
+- File ops: read_file, write_file, edit_file, list_directory
+- Git: git_status, git_commit, git_push, git_pull
+- Self-modify: edit_file (for code changes), git_commit, git_push, restart_self (apply changes)
+- Issues: bd_ready, bd_show, bd_update, bd_close, bd_sync, bd_create
 - Memory: get_memory_blocks, set_memory_block, search_memory, archive_to_memory, read_journal
 - Tasks: query_todoist, create_todoist_task, complete_todoist_task
 - Calendar: query_gcal
@@ -214,7 +216,7 @@ async def run_agent_loop(user_message: str, context: str = "") -> str:
     if not api_key:
         return "I'm not properly configured. ANTHROPIC_API_KEY is missing."
 
-    client = Anthropic(api_key=api_key)
+    client = AsyncAnthropic(api_key=api_key)
 
     # Load memory blocks for system prompt
     memory_blocks = _get_memory_blocks()
@@ -237,7 +239,7 @@ async def run_agent_loop(user_message: str, context: str = "") -> str:
 
     while tool_calls < MAX_TOOL_CALLS:
         try:
-            response = client.messages.create(
+            response = await client.messages.create(
                 model=MODEL,
                 max_tokens=4096,
                 system=system_prompt,
