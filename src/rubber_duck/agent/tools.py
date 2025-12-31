@@ -550,16 +550,16 @@ def list_todoist_projects() -> str:
 def update_todoist_task(
     task_id: str,
     content: str | None = None,
-    project_id: str | None = None,
     due_string: str | None = None,
     labels: list[str] | None = None,
 ) -> str:
-    """Update an existing Todoist task.
+    """Update an existing Todoist task (content, due date, labels).
+
+    Note: Cannot move tasks between projects - use move_todoist_task for that.
 
     Args:
         task_id: Task ID to update
         content: New task content (optional)
-        project_id: Move to this project (optional)
         due_string: New due date (optional)
         labels: New labels (optional)
 
@@ -576,8 +576,6 @@ def update_todoist_task(
         kwargs = {}
         if content:
             kwargs["content"] = content
-        if project_id:
-            kwargs["project_id"] = project_id
         if due_string:
             kwargs["due_string"] = due_string
         if labels is not None:
@@ -592,6 +590,57 @@ def update_todoist_task(
         return f"Updated task {task_id}"
     except Exception as e:
         return f"Error updating task: {e}"
+
+
+def move_todoist_task(task_id: str, project_id: str) -> str:
+    """Move a task to a different project using Todoist Sync API.
+
+    Args:
+        task_id: Task ID to move
+        project_id: Destination project ID
+
+    Returns:
+        Success or error message
+    """
+    import os
+    import requests
+    import uuid
+
+    api_token = os.environ.get("TODOIST_API_KEY")
+    if not api_token:
+        return "Error: Todoist not configured"
+
+    try:
+        # Use Sync API for moving tasks
+        response = requests.post(
+            "https://api.todoist.com/sync/v9/sync",
+            headers={"Authorization": f"Bearer {api_token}"},
+            json={
+                "commands": [
+                    {
+                        "type": "item_move",
+                        "uuid": str(uuid.uuid4()),
+                        "args": {
+                            "id": task_id,
+                            "project_id": project_id,
+                        },
+                    }
+                ]
+            },
+            timeout=30,
+        )
+        response.raise_for_status()
+        result = response.json()
+
+        # Check for errors in sync response
+        if "sync_status" in result:
+            for cmd_uuid, status in result["sync_status"].items():
+                if status != "ok" and isinstance(status, dict) and "error" in status:
+                    return f"Error moving task: {status['error']}"
+
+        return f"Moved task {task_id} to project {project_id}"
+    except Exception as e:
+        return f"Error moving task: {e}"
 
 
 # =============================================================================
@@ -871,7 +920,7 @@ TOOL_SCHEMAS = [
     },
     {
         "name": "update_todoist_task",
-        "description": "Update an existing task - change content, move to different project, reschedule, or change labels.",
+        "description": "Update task content, due date, or labels. To move between projects, use move_todoist_task.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -882,10 +931,6 @@ TOOL_SCHEMAS = [
                 "content": {
                     "type": "string",
                     "description": "New task content (optional)",
-                },
-                "project_id": {
-                    "type": "string",
-                    "description": "Project ID to move task to (optional)",
                 },
                 "due_string": {
                     "type": "string",
@@ -898,6 +943,24 @@ TOOL_SCHEMAS = [
                 },
             },
             "required": ["task_id"],
+        },
+    },
+    {
+        "name": "move_todoist_task",
+        "description": "Move a task to a different project.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "task_id": {
+                    "type": "string",
+                    "description": "Task ID to move",
+                },
+                "project_id": {
+                    "type": "string",
+                    "description": "Destination project ID",
+                },
+            },
+            "required": ["task_id", "project_id"],
         },
     },
     {
@@ -943,6 +1006,7 @@ TOOL_FUNCTIONS = {
     "complete_todoist_task": complete_todoist_task,
     "list_todoist_projects": list_todoist_projects,
     "update_todoist_task": update_todoist_task,
+    "move_todoist_task": move_todoist_task,
     "query_gcal": query_gcal,
     "run_morning_planning": run_morning_planning,
     "run_weekly_review": run_weekly_review,
