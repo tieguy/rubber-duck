@@ -36,25 +36,18 @@ Tools are Python functions that run in Letta's sandbox. They must be self-contai
 **Tool structure:**
 ```
 src/rubber_duck/integrations/
-├── letta_tools.py              # Loader and registration
+├── memory.py                   # Agent management, system prompt (defines available tools)
 └── tools/
-    ├── query_todoist.py        # Task CRUD
-    ├── create_todoist_task.py
-    ├── update_todoist_task.py
-    ├── complete_todoist_task.py
-    ├── list_todoist_projects.py  # Project operations
-    ├── create_todoist_project.py
-    ├── archive_todoist_project.py
-    ├── morning_planning.py       # GTD workflows
-    ├── end_of_day_review.py
-    ├── weekly_review.py
-    └── get_completed_tasks.py
+    ├── morning_planning.py     # GTD morning workflow
+    └── weekly_review.py        # GTD weekly review
 ```
 
-**To add a new tool:**
+**Note:** Many tools described in the system prompt (Todoist CRUD, project operations) are provided by Letta Cloud's hosted tools, not local files. The `tools/` directory contains only custom workflow tools.
+
+**To add a new custom tool:**
 1. Create a `.py` file in `tools/` with a single function
-2. Add `(filename, description)` to `TOOL_DEFINITIONS` in `letta_tools.py`
-3. Restart the bot - tools are registered on startup via `upsert`
+2. Register it with Letta Cloud (see archive/letta-sandbox-tools/ for examples)
+3. Update the system prompt in `memory.py` if the agent needs instructions
 
 **Constraints:**
 - Tools must be self-contained (imports inside the function)
