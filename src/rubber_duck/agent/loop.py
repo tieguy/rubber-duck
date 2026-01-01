@@ -128,6 +128,7 @@ def _get_recent_context() -> list[dict]:
     """Read recent conversation turns from journal for context.
 
     Returns list of message dicts suitable for Anthropic messages API.
+    Only includes user_message and assistant_message entries, not tool calls.
     """
     repo_root = Path(__file__).parent.parent.parent.parent
     journal = repo_root / JOURNAL_PATH
@@ -139,12 +140,19 @@ def _get_recent_context() -> list[dict]:
         with open(journal) as f:
             lines = f.readlines()
 
-        # Parse recent entries into messages
+        # Parse entries from end, collecting only user/assistant messages
+        # Read more lines since tool_call/tool_result entries are filtered out
         messages = []
-        for line in lines[-20:]:
+        for line in reversed(lines[-200:]):  # Check last 200 lines
             msg = _parse_journal_entry(line)
             if msg:
                 messages.append(msg)
+                # Stop once we have enough messages
+                if len(messages) >= RECENT_CONTEXT_LIMIT * 2 + 2:
+                    break
+
+        # Reverse back to chronological order
+        messages.reverse()
 
         # Get last N exchanges and validate alternation
         recent = messages[-(RECENT_CONTEXT_LIMIT * 2):]
