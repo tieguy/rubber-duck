@@ -11,7 +11,7 @@ def run_async(coro):
     by running the coroutine in a thread pool.
     """
     try:
-        loop = asyncio.get_running_loop()
+        asyncio.get_running_loop()
     except RuntimeError:
         return asyncio.run(coro)
     else:

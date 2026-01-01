@@ -153,7 +153,7 @@ def run_weekly_review() -> str:
             waiting_actions = []
 
             for task in tasks:
-                labels = set(l.lower() for l in task.get("labels", []))
+                labels = {label.lower() for label in task.get("labels", [])}
                 is_backburner = bool(labels & BACKBURNER_LABELS)
                 is_waiting = bool(labels & WAITING_LABELS)
 
@@ -174,7 +174,7 @@ def run_weekly_review() -> str:
             """Get next action: highest priority non-backburner/waiting task."""
             actionable = []
             for t in tasks:
-                labels = set(l.lower() for l in t.get("labels", []))
+                labels = {label.lower() for label in t.get("labels", [])}
                 if not (labels & BACKBURNER_LABELS) and not (labels & WAITING_LABELS):
                     actionable.append(t)
             if not actionable:
@@ -260,7 +260,7 @@ def run_weekly_review() -> str:
                             age_str = f" ({age}d - gentle check-in)"
                         else:
                             age_str = f" ({age}d)"
-                    except:
+                    except (ValueError, AttributeError):
                         pass
                 lines.append(f"- [{proj_name}] {task['content']}{age_str}")
             lines.append("")

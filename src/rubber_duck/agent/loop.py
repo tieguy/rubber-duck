@@ -11,7 +11,7 @@ import json
 import logging
 import os
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from anthropic import AsyncAnthropic
@@ -57,6 +57,48 @@ JOURNAL_PATH = "state/journal.jsonl"
 RECENT_CONTEXT_LIMIT = 3  # Number of recent exchanges to inject as context
 
 
+def _parse_journal_entry(line: str) -> dict | None:
+    """Parse a single journal line into a message dict if valid."""
+    try:
+        entry = json.loads(line.strip())
+        entry_type = entry.get("type")
+        content = entry.get("content", "")
+
+        if entry_type == "user_message" and content:
+            return {"role": "user", "content": content}
+        elif entry_type == "assistant_message" and content:
+            return {"role": "assistant", "content": content}
+    except json.JSONDecodeError:
+        pass
+    return None
+
+
+def _validate_message_alternation(messages: list[dict]) -> list[dict]:
+    """Ensure messages alternate user/assistant and end with assistant."""
+    if not messages:
+        return []
+
+    # Find first user message
+    start_idx = next(
+        (i for i, msg in enumerate(messages) if msg["role"] == "user"),
+        len(messages)
+    )
+
+    # Build validated list with proper alternation
+    validated = []
+    expected_role = "user"
+    for msg in messages[start_idx:]:
+        if msg["role"] == expected_role:
+            validated.append(msg)
+            expected_role = "assistant" if expected_role == "user" else "user"
+
+    # Must end with assistant (so we can add new user message)
+    if validated and validated[-1]["role"] == "user":
+        validated = validated[:-1]
+
+    return validated
+
+
 def _get_recent_context() -> list[dict]:
     """Read recent conversation turns from journal for context.
 
@@ -72,49 +114,16 @@ def _get_recent_context() -> list[dict]:
         with open(journal) as f:
             lines = f.readlines()
 
-        # Get recent entries (user_message and assistant_message only)
+        # Parse recent entries into messages
         messages = []
-        for line in lines[-20:]:  # Look at last 20 entries to find recent exchanges
-            try:
-                entry = json.loads(line.strip())
-                if entry.get("type") == "user_message":
-                    content = entry.get("content", "")
-                    if content:
-                        messages.append({"role": "user", "content": content})
-                elif entry.get("type") == "assistant_message":
-                    content = entry.get("content", "")
-                    if content:
-                        messages.append({"role": "assistant", "content": content})
-            except json.JSONDecodeError:
-                continue
+        for line in lines[-20:]:
+            msg = _parse_journal_entry(line)
+            if msg:
+                messages.append(msg)
 
-        # Return last N exchanges (user + assistant pairs)
-        # Ensure we start with a user message and alternate properly
+        # Get last N exchanges and validate alternation
         recent = messages[-(RECENT_CONTEXT_LIMIT * 2):]
-
-        # Validate message alternation (Anthropic requires user/assistant/user/...)
-        if not recent:
-            return []
-
-        # Find first user message to start from
-        start_idx = 0
-        for i, msg in enumerate(recent):
-            if msg["role"] == "user":
-                start_idx = i
-                break
-
-        validated = []
-        expected_role = "user"
-        for msg in recent[start_idx:]:
-            if msg["role"] == expected_role:
-                validated.append(msg)
-                expected_role = "assistant" if expected_role == "user" else "user"
-
-        # Must end with assistant message (so we can add new user message)
-        if validated and validated[-1]["role"] == "user":
-            validated = validated[:-1]
-
-        return validated
+        return _validate_message_alternation(recent)
 
     except Exception as e:
         logger.warning(f"Could not read journal for context: {e}")
@@ -128,7 +137,7 @@ def _log_to_journal(event_type: str, data: dict) -> None:
     journal.parent.mkdir(parents=True, exist_ok=True)
 
     entry = {
-        "ts": datetime.utcnow().isoformat() + "Z",
+        "ts": datetime.now(timezone.utc).isoformat(),
         "type": event_type,
         **data,
     }
@@ -229,6 +238,32 @@ def _get_memory_blocks() -> dict:
         return {}
 
 
+def _execute_tool_block(tool_block) -> dict:
+    """Execute a single tool block and return the result dict."""
+    tool_name = tool_block.name
+    tool_input = tool_block.input if isinstance(tool_block.input, dict) else {}
+
+    _log_to_journal("tool_call", {"tool": tool_name, "args": tool_input})
+
+    result = execute_tool(tool_name, tool_input)
+
+    result_log = result[:500] + ("..." if len(result) > 500 else "")
+    _log_to_journal("tool_result", {"tool": tool_name, "result": result_log})
+
+    return {
+        "type": "tool_result",
+        "tool_use_id": tool_block.id,
+        "content": result,
+    }
+
+
+def _extract_final_text(text_blocks: list) -> str:
+    """Extract and log final response text from text blocks."""
+    final_text = "\n".join(b.text for b in text_blocks)
+    _log_to_journal("assistant_message", {"content": final_text})
+    return final_text
+
+
 async def run_agent_loop(user_message: str, context: str = "", is_nudge: bool = False) -> str:
     """Run the agent loop for a user message.
 
@@ -246,29 +281,19 @@ async def run_agent_loop(user_message: str, context: str = "", is_nudge: bool = 
 
     client = AsyncAnthropic(api_key=api_key)
 
-    # Select model based on task complexity
+    # Select model and build system prompt
     model = _select_model(user_message, is_nudge=is_nudge)
     logger.info(f"Using model: {model}")
+    system_prompt = _build_system_prompt(_get_memory_blocks())
 
-    # Load memory blocks for system prompt
-    memory_blocks = _get_memory_blocks()
-    system_prompt = _build_system_prompt(memory_blocks)
-
-    # Build initial message
-    if context:
-        full_message = f"[Context: {context}]\n\n{user_message}"
-    else:
-        full_message = user_message
-
-    # Start with recent conversation context from journal
+    # Build initial message with context
+    full_message = f"[Context: {context}]\n\n{user_message}" if context else user_message
     messages = _get_recent_context()
     messages.append({"role": "user", "content": full_message})
 
-    # Log user message
     _log_to_journal("user_message", {"content": user_message, "context": context})
 
     tool_calls = 0
-
     while tool_calls < MAX_TOOL_CALLS:
         try:
             response = await client.messages.create(
@@ -282,49 +307,22 @@ async def run_agent_loop(user_message: str, context: str = "", is_nudge: bool = 
             logger.exception(f"Anthropic API error: {e}")
             return "I encountered an error communicating with my brain. Please try again."
 
-        # Check for tool use
         tool_use_blocks = [b for b in response.content if b.type == "tool_use"]
         text_blocks = [b for b in response.content if b.type == "text"]
 
+        # No tools means final response
         if not tool_use_blocks:
-            # No tools, we have final response
-            final_text = "\n".join(b.text for b in text_blocks)
-            _log_to_journal("assistant_message", {"content": final_text})
-            return final_text
+            return _extract_final_text(text_blocks)
 
-        # Execute tools
+        # Execute all tools and collect results
         messages.append({"role": "assistant", "content": response.content})
-
-        tool_results = []
-        for tool_block in tool_use_blocks:
-            tool_name = tool_block.name
-            tool_input = tool_block.input
-
-            # Validate tool_input is a dict before calling execute_tool
-            if not isinstance(tool_input, dict):
-                tool_input = {}
-
-            _log_to_journal("tool_call", {"tool": tool_name, "args": tool_input})
-
-            result = execute_tool(tool_name, tool_input)
-
-            result_log = result[:500] + ("..." if len(result) > 500 else "")
-            _log_to_journal("tool_result", {"tool": tool_name, "result": result_log})
-
-            tool_results.append({
-                "type": "tool_result",
-                "tool_use_id": tool_block.id,
-                "content": result,
-            })
-            tool_calls += 1
-
+        tool_results = [_execute_tool_block(block) for block in tool_use_blocks]
+        tool_calls += len(tool_results)
         messages.append({"role": "user", "content": tool_results})
 
-        # Check stop reason
+        # End turn with text means final response
         if response.stop_reason == "end_turn":
-            final_text = "\n".join(b.text for b in text_blocks)
-            _log_to_journal("assistant_message", {"content": final_text})
-            return final_text
+            return _extract_final_text(text_blocks)
 
     return "I've made too many tool calls. Let me know what else you need."
 

@@ -108,7 +108,7 @@ def load_nudge_config(config_path: Path | None = None) -> dict:
     return config or {"nudges": []}
 
 
-async def setup_scheduler(bot) -> AsyncIOScheduler:
+def setup_scheduler(bot) -> AsyncIOScheduler:
     """Set up the APScheduler with nudges from config."""
     scheduler = AsyncIOScheduler(timezone="America/Los_Angeles")
 

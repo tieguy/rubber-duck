@@ -1,5 +1,6 @@
 """Letta Cloud memory integration for Rubber Duck."""
 
+import asyncio
 import logging
 import os
 
@@ -142,8 +143,8 @@ async def get_or_create_agent() -> str | None:
         return None
 
     try:
-        # Look for existing agent
-        agents = client.agents.list()
+        # Look for existing agent (run blocking I/O in thread)
+        agents = await asyncio.to_thread(client.agents.list)
         for agent in agents:
             if agent.name == AGENT_NAME:
                 _agent_id = agent.id

@@ -15,6 +15,12 @@ from rubber_duck.agent.utils import run_async
 
 logger = logging.getLogger(__name__)
 
+# Error message constants
+ERR_LETTA_NOT_CONFIGURED = "Error: Letta not configured"
+ERR_AGENT_NOT_FOUND = "Error: Could not get agent"
+ERR_TODOIST_NOT_CONFIGURED = "Error: Todoist not configured"
+ERR_BD_NOT_INSTALLED = "Error: bd CLI not installed"
+
 # Base paths
 REPO_ROOT = Path(__file__).parent.parent.parent.parent
 STATE_DIR = REPO_ROOT / "state"
@@ -298,13 +304,13 @@ def get_memory_blocks() -> str:
 
     client = get_client()
     if not client:
-        return "Error: Letta not configured"
+        return ERR_LETTA_NOT_CONFIGURED
 
     try:
         # Get agent ID (may need to create)
         agent_id = run_async(get_or_create_agent())
         if not agent_id:
-            return "Error: Could not get agent"
+            return ERR_AGENT_NOT_FOUND
 
         # Get memory blocks via blocks API
         block_list = client.agents.blocks.list(agent_id=agent_id)
@@ -333,12 +339,12 @@ def set_memory_block(name: str, value: str) -> str:
 
     client = get_client()
     if not client:
-        return "Error: Letta not configured"
+        return ERR_LETTA_NOT_CONFIGURED
 
     try:
         agent_id = run_async(get_or_create_agent())
         if not agent_id:
-            return "Error: Could not get agent"
+            return ERR_AGENT_NOT_FOUND
 
         # Update block directly
         client.agents.blocks.update(
@@ -364,12 +370,12 @@ def search_memory(query: str) -> str:
 
     client = get_client()
     if not client:
-        return "Error: Letta not configured"
+        return ERR_LETTA_NOT_CONFIGURED
 
     try:
         agent_id = run_async(get_or_create_agent())
         if not agent_id:
-            return "Error: Could not get agent"
+            return ERR_AGENT_NOT_FOUND
 
         response = client.agents.passages.search(
             agent_id=agent_id,
@@ -409,12 +415,12 @@ def archive_to_memory(content: str) -> str:
 
     client = get_client()
     if not client:
-        return "Error: Letta not configured"
+        return ERR_LETTA_NOT_CONFIGURED
 
     try:
         agent_id = run_async(get_or_create_agent())
         if not agent_id:
-            return "Error: Could not get agent"
+            return ERR_AGENT_NOT_FOUND
 
         # Try different method names as SDK may vary
         passages = client.agents.passages
@@ -505,7 +511,7 @@ def query_todoist(filter_query: str) -> str:
 
     client = get_client()
     if not client:
-        return "Error: Todoist not configured"
+        return ERR_TODOIST_NOT_CONFIGURED
 
     try:
         # filter_tasks returns an Iterator[list[Task]], flatten it
@@ -553,7 +559,7 @@ def create_todoist_task(
 
     client = get_client()
     if not client:
-        return "Error: Todoist not configured"
+        return ERR_TODOIST_NOT_CONFIGURED
 
     try:
         kwargs = {"content": content}
@@ -586,7 +592,7 @@ def complete_todoist_task(task_id: str) -> str:
 
     client = get_client()
     if not client:
-        return "Error: Todoist not configured"
+        return ERR_TODOIST_NOT_CONFIGURED
 
     try:
         # close_task expects task_id as positional argument
@@ -608,7 +614,7 @@ def list_todoist_projects() -> str:
 
     client = get_client()
     if not client:
-        return "Error: Todoist not configured"
+        return ERR_TODOIST_NOT_CONFIGURED
 
     try:
         # get_projects may return Iterator[list[Project]], flatten it
@@ -662,7 +668,7 @@ def update_todoist_task(
 
     client = get_client()
     if not client:
-        return "Error: Todoist not configured"
+        return ERR_TODOIST_NOT_CONFIGURED
 
     try:
         kwargs = {}
@@ -853,7 +859,7 @@ def bd_ready() -> str:
         )
         return result.stdout or result.stderr or "No ready issues"
     except FileNotFoundError:
-        return "Error: bd CLI not installed"
+        return ERR_BD_NOT_INSTALLED
     except Exception as e:
         return f"Error running bd ready: {e}"
 
@@ -877,7 +883,7 @@ def bd_show(issue_id: str) -> str:
         )
         return result.stdout or result.stderr or f"No issue found: {issue_id}"
     except FileNotFoundError:
-        return "Error: bd CLI not installed"
+        return ERR_BD_NOT_INSTALLED
     except Exception as e:
         return f"Error running bd show: {e}"
 
@@ -904,7 +910,7 @@ def bd_update(issue_id: str, status: str) -> str:
             return f"Error: {result.stderr}"
         return result.stdout or f"Updated {issue_id} to {status}"
     except FileNotFoundError:
-        return "Error: bd CLI not installed"
+        return ERR_BD_NOT_INSTALLED
     except Exception as e:
         return f"Error running bd update: {e}"
 
@@ -930,7 +936,7 @@ def bd_close(issue_id: str) -> str:
             return f"Error: {result.stderr}"
         return result.stdout or f"Closed issue {issue_id}"
     except FileNotFoundError:
-        return "Error: bd CLI not installed"
+        return ERR_BD_NOT_INSTALLED
     except Exception as e:
         return f"Error running bd close: {e}"
 
@@ -953,7 +959,7 @@ def bd_sync() -> str:
             return f"Error: {result.stderr}"
         return result.stdout or "Synced"
     except FileNotFoundError:
-        return "Error: bd CLI not installed"
+        return ERR_BD_NOT_INSTALLED
     except Exception as e:
         return f"Error running bd sync: {e}"
 
@@ -985,7 +991,7 @@ def bd_create(title: str, description: str = "", priority: str = "medium") -> st
             return f"Error: {result.stderr}"
         return result.stdout or "Issue created"
     except FileNotFoundError:
-        return "Error: bd CLI not installed"
+        return ERR_BD_NOT_INSTALLED
     except Exception as e:
         return f"Error running bd create: {e}"
 
