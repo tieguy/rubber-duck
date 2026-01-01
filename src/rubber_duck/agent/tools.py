@@ -527,11 +527,27 @@ def query_todoist(filter_query: str) -> str:
         if not tasks:
             return f"No tasks found matching '{filter_query}'"
 
+        # Build project ID -> name map for display
+        project_map = {}
+        try:
+            project_result = run_async(
+                asyncio.to_thread(lambda: list(client.get_projects()))
+            )
+            for item in project_result:
+                if isinstance(item, list):
+                    for p in item:
+                        project_map[p.id] = p.name
+                else:
+                    project_map[item.id] = item.name
+        except Exception:
+            pass  # Gracefully degrade if project fetch fails
+
         lines = [f"Found {len(tasks)} task(s):"]
         for t in tasks[:20]:
             due = f" (due: {t.due.string})" if t.due else ""
             labels = f" [{', '.join(t.labels)}]" if t.labels else ""
-            lines.append(f"- [ID:{t.id}] {t.content}{due}{labels}")
+            project = f" (project: {project_map.get(t.project_id, t.project_id)})" if t.project_id else ""
+            lines.append(f"- [ID:{t.id}] {t.content}{due}{labels}{project}")
 
         if len(tasks) > 20:
             lines.append(f"... and {len(tasks) - 20} more")
