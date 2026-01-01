@@ -114,8 +114,8 @@ async def complete_task(task_id: str) -> bool:
         return False
 
     try:
-        # close_task expects task_id as positional argument
-        await asyncio.to_thread(client.close_task, task_id)
+        # close expects task_id as positional argument
+        await asyncio.to_thread(client.close, task_id)
         return True
     except Exception as e:
         logger.exception(f"Error completing Todoist task: {e}")
