@@ -296,6 +296,34 @@ def _tool_succeeded(result: str) -> bool:
     return not any(signal in result_lower for signal in error_signals)
 
 
+def _is_intent_text(text: str) -> bool:
+    """Check if text is announcing intent rather than providing a final response.
+
+    When Claude calls tools, it often says "Let me search..." or "I'll complete that..."
+    This is intent text - announcing what it's about to do. We should NOT return this
+    as the final response; we need to wait for Claude to see the tool result and respond.
+    """
+    text = text.strip()
+    if not text:
+        return True  # Empty text is not a final response
+
+    # Text ending with colon is announcing next action
+    if text.endswith(":"):
+        return True
+
+    # Check for intent phrases near the end of the text
+    # Look at last 100 chars to catch trailing intent
+    tail = text[-100:].lower() if len(text) > 100 else text.lower()
+    intent_phrases = [
+        "let me ",
+        "i'll ",
+        "i will ",
+        "i'm going to ",
+        "let's ",
+    ]
+    return any(phrase in tail for phrase in intent_phrases)
+
+
 async def run_agent_loop(user_message: str, context: str = "", is_nudge: bool = False) -> str:
     """Run the agent loop for a user message.
 
@@ -352,11 +380,13 @@ async def run_agent_loop(user_message: str, context: str = "", is_nudge: bool = 
         tool_results = [_execute_tool_block(block) for block in tool_use_blocks]
         tool_calls += len(tool_results)
 
-        # Success-gated early return: if Claude gave us text AND all tools succeeded,
-        # return immediately without another LLM call
+        # Success-gated early return: if Claude gave us a final response AND all tools
+        # succeeded, return immediately without another LLM call.
+        # But skip if the text is just announcing intent ("Let me search...")
         all_succeeded = all(_tool_succeeded(r["content"]) for r in tool_results)
-        if text_blocks and all_succeeded:
-            logger.info("Early return: tools succeeded and response text available")
+        response_text = "\n".join(b.text for b in text_blocks) if text_blocks else ""
+        if text_blocks and all_succeeded and not _is_intent_text(response_text):
+            logger.info("Early return: tools succeeded and final response available")
             return _extract_final_text(text_blocks)
 
         # Otherwise, send results back to Claude for next step
