@@ -280,6 +280,16 @@ def _extract_final_text(text_blocks: list) -> str:
     return final_text
 
 
+def _tool_succeeded(result: str) -> bool:
+    """Check if a tool result indicates success (no error signals)."""
+    error_signals = [
+        "error:", "failed:", "exception:", "not found", "denied",
+        "unauthorized", "timeout", "could not", "unable to",
+    ]
+    result_lower = result.lower()
+    return not any(signal in result_lower for signal in error_signals)
+
+
 async def run_agent_loop(user_message: str, context: str = "", is_nudge: bool = False) -> str:
     """Run the agent loop for a user message.
 
@@ -333,14 +343,19 @@ async def run_agent_loop(user_message: str, context: str = "", is_nudge: bool = 
             return _extract_final_text(text_blocks)
 
         # Execute all tools and collect results
-        messages.append({"role": "assistant", "content": response.content})
         tool_results = [_execute_tool_block(block) for block in tool_use_blocks]
         tool_calls += len(tool_results)
-        messages.append({"role": "user", "content": tool_results})
 
-        # End turn with text means final response
-        if response.stop_reason == "end_turn":
+        # Success-gated early return: if Claude gave us text AND all tools succeeded,
+        # return immediately without another LLM call
+        all_succeeded = all(_tool_succeeded(r["content"]) for r in tool_results)
+        if text_blocks and all_succeeded:
+            logger.info("Early return: tools succeeded and response text available")
             return _extract_final_text(text_blocks)
+
+        # Otherwise, send results back to Claude for next step
+        messages.append({"role": "assistant", "content": response.content})
+        messages.append({"role": "user", "content": tool_results})
 
     return "I've made too many tool calls. Let me know what else you need."
 
