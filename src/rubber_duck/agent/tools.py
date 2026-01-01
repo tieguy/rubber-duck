@@ -595,35 +595,18 @@ def list_todoist_projects() -> str:
     Returns:
         Formatted project list with IDs
     """
-    from rubber_duck.integrations.todoist import get_client
-
-    client = get_client()
-    if not client:
-        return ERR_TODOIST_NOT_CONFIGURED
+    from rubber_duck.integrations.todoist import list_projects
 
     try:
-        # get_projects may return Iterator[list[Project]], flatten it
-        result = run_async(
-            asyncio.to_thread(lambda: list(client.get_projects()))
-        )
-
-        # Flatten if nested
-        projects = []
-        for item in result:
-            if isinstance(item, list):
-                projects.extend(item)
-            else:
-                projects.append(item)
+        projects = run_async(list_projects())
 
         if not projects:
-            return "No projects found"
+            return "No projects found (or Todoist not configured)"
 
         lines = ["Projects:"]
         for p in projects:
-            indent = "  " if getattr(p, 'parent_id', None) else ""
-            name = getattr(p, 'name', str(p))
-            pid = getattr(p, 'id', 'unknown')
-            lines.append(f"{indent}- {name} [ID:{pid}]")
+            indent = "  " if p.get("parent_id") else ""
+            lines.append(f"{indent}- {p['name']} [ID:{p['id']}]")
 
         return "\n".join(lines)
     except Exception as e:
@@ -649,30 +632,21 @@ def update_todoist_task(
     Returns:
         Success or error message
     """
-    from rubber_duck.integrations.todoist import get_client
+    from rubber_duck.integrations.todoist import update_task
 
-    client = get_client()
-    if not client:
-        return ERR_TODOIST_NOT_CONFIGURED
+    if not any([content, due_string, labels is not None]):
+        return "Error: No updates specified"
 
-    try:
-        kwargs = {}
-        if content:
-            kwargs["content"] = content
-        if due_string:
-            kwargs["due_string"] = due_string
-        if labels is not None:
-            kwargs["labels"] = labels
+    success = run_async(update_task(
+        task_id=task_id,
+        content=content,
+        due_string=due_string,
+        labels=labels,
+    ))
 
-        if not kwargs:
-            return "Error: No updates specified"
-
-        run_async(
-            asyncio.to_thread(client.update_task, task_id=task_id, **kwargs)
-        )
+    if success:
         return f"Updated task {task_id}"
-    except Exception as e:
-        return f"Error updating task: {e}"
+    return f"Error: Failed to update task {task_id} (check logs)"
 
 
 def move_todoist_task(task_id: str, project_id: str) -> str:
@@ -685,45 +659,13 @@ def move_todoist_task(task_id: str, project_id: str) -> str:
     Returns:
         Success or error message
     """
-    import os
-    import requests
-    import uuid
+    from rubber_duck.integrations.todoist import move_task
 
-    api_token = os.environ.get("TODOIST_API_KEY")
-    if not api_token:
-        return "Error: Todoist not configured"
+    success = run_async(move_task(task_id, project_id))
 
-    try:
-        # Use Sync API for moving tasks
-        response = requests.post(
-            "https://api.todoist.com/sync/v9/sync",
-            headers={"Authorization": f"Bearer {api_token}"},
-            json={
-                "commands": [
-                    {
-                        "type": "item_move",
-                        "uuid": str(uuid.uuid4()),
-                        "args": {
-                            "id": task_id,
-                            "project_id": project_id,
-                        },
-                    }
-                ]
-            },
-            timeout=30,
-        )
-        response.raise_for_status()
-        result = response.json()
-
-        # Check for errors in sync response
-        if "sync_status" in result:
-            for cmd_uuid, status in result["sync_status"].items():
-                if status != "ok" and isinstance(status, dict) and "error" in status:
-                    return f"Error moving task: {status['error']}"
-
+    if success:
         return f"Moved task {task_id} to project {project_id}"
-    except Exception as e:
-        return f"Error moving task: {e}"
+    return f"Error: Failed to move task {task_id} (check logs)"
 
 
 # =============================================================================
