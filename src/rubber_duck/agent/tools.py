@@ -614,9 +614,9 @@ def complete_todoist_task(task_id: str) -> str:
         return ERR_TODOIST_NOT_CONFIGURED
 
     try:
-        # close expects task_id as positional argument
+        # complete_task marks task as done (recurring tasks get rescheduled)
         run_async(
-            asyncio.to_thread(client.close, task_id)
+            asyncio.to_thread(client.complete_task, task_id)
         )
         return f"Completed task {task_id}"
     except Exception as e:
