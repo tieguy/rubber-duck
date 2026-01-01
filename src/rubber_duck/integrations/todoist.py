@@ -117,8 +117,8 @@ async def complete_task(task_id: str) -> bool:
         return False
 
     try:
-        # close expects task_id as positional argument
-        await asyncio.to_thread(client.close, task_id)
+        # complete_task marks task as done (recurring tasks get rescheduled)
+        await asyncio.to_thread(client.complete_task, task_id)
         return True
     except Exception as e:
         logger.exception(f"Error completing Todoist task: {e}")
