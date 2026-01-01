@@ -751,16 +751,16 @@ def restart_self(confirm: str = "") -> str:
         return "Error: restart_self requires confirm='I just pushed code'. Only use after git_push."
 
     import sys
-    import os
 
-    logger.info("Restarting bot process to pick up code changes...")
+    logger.info("Exiting to trigger container restart and pick up code changes...")
 
     # Flush any pending output
     sys.stdout.flush()
     sys.stderr.flush()
 
-    # Replace current process with fresh instance
-    os.execv(sys.executable, [sys.executable, "-m", "rubber_duck"])
+    # Exit cleanly - Fly.io will restart the container, which runs entrypoint.sh
+    # entrypoint.sh does git reset --hard origin/main to get the latest code
+    sys.exit(0)
 
     # This line is never reached
     return "Restarting..."
