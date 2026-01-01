@@ -21,6 +21,9 @@ CHECKPOINT_TIMEOUT = 15 * 60
 # Continue keywords for checkpoint
 CONTINUE_KEYWORDS = {"yes", "continue", "go", "ok", "keep going"}
 
+# Track active sessions by channel ID to prevent duplicate handling
+_active_sessions: dict[int, "InteractiveSession"] = {}
+
 
 class InteractiveSession:
     """Manages state for an interactive agent session."""
@@ -157,14 +160,22 @@ async def handle_message(bot, message: discord.Message) -> None:
     if not content:
         return
 
+    channel_id = message.channel.id
+
+    # If there's an active session, let it handle this message (for checkpoints/cancel)
+    if channel_id in _active_sessions:
+        logger.info(f"Message during active session, routing to session: {content[:50]}")
+        return  # The session's listener will pick this up
+
     logger.info(f"Handling message from owner: {content[:50]}...")
 
     try:
         # Send initial status message
         status_msg = await message.reply("🤔 Starting...")
 
-        # Create interactive session
+        # Create interactive session and register it
         session = InteractiveSession(bot, message.channel, status_msg)
+        _active_sessions[channel_id] = session
         session.start_listening()
 
         try:
@@ -180,6 +191,7 @@ async def handle_message(bot, message: discord.Message) -> None:
             )
         finally:
             session.stop_listening()
+            _active_sessions.pop(channel_id, None)
 
     except Exception as e:
         logger.exception(f"Error handling message: {e}")
