@@ -607,20 +607,12 @@ def complete_todoist_task(task_id: str) -> str:
     Returns:
         Success or error message
     """
-    from rubber_duck.integrations.todoist import get_client
+    from rubber_duck.integrations.todoist import complete_task
 
-    client = get_client()
-    if not client:
-        return ERR_TODOIST_NOT_CONFIGURED
-
-    try:
-        # complete_task marks task as done (recurring tasks get rescheduled)
-        run_async(
-            asyncio.to_thread(client.complete_task, task_id)
-        )
+    success = run_async(complete_task(task_id))
+    if success:
         return f"Completed task {task_id}"
-    except Exception as e:
-        return f"Error completing task: {e}"
+    return f"Error: Failed to complete task {task_id} (check logs)"
 
 
 def list_todoist_projects() -> str:
