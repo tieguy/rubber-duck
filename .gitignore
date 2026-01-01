@@ -2,6 +2,7 @@
 .env
 dev-the-duck.sh
 .worktrees/
+.beads/
 
 # Marvin exports (contain personal data)
 *.jsonl
