@@ -65,6 +65,7 @@ async def create_task(
     description: str = "",
     labels: list[str] | None = None,
     due_string: str | None = None,
+    project_id: str | None = None,
 ) -> dict | None:
     """Create a new task in Todoist.
 
@@ -73,6 +74,7 @@ async def create_task(
         description: Optional task description
         labels: Optional list of label names
         due_string: Optional due date string (e.g., "tomorrow", "next monday")
+        project_id: Optional project ID to add task to
 
     Returns:
         Created task dict or None on failure
@@ -82,13 +84,20 @@ async def create_task(
         return None
 
     try:
+        # Build kwargs, only including non-None values
+        kwargs: dict = {
+            "content": content,
+            "description": description,
+            "labels": labels or [],
+        }
+        if due_string:
+            kwargs["due_string"] = due_string
+        if project_id:
+            kwargs["project_id"] = project_id
+
         # Wrap sync call to avoid blocking event loop
         task = await asyncio.to_thread(
-            client.add_task,
-            content=content,
-            description=description,
-            labels=labels or [],
-            due_string=due_string,
+            lambda: client.add_task(**kwargs)
         )
         return {
             "id": task.id,
@@ -123,3 +132,30 @@ async def complete_task(task_id: str) -> bool:
     except Exception as e:
         logger.exception(f"Error completing Todoist task: {e}")
         return False
+
+
+async def get_projects() -> dict[str, str]:
+    """Get all Todoist projects as an ID -> name map.
+
+    Returns:
+        Dict mapping project_id to project_name, empty dict on failure
+    """
+    client = get_client()
+    if not client:
+        return {}
+
+    try:
+        project_result = await asyncio.to_thread(
+            lambda: list(client.get_projects())
+        )
+        project_map = {}
+        for item in project_result:
+            if isinstance(item, list):
+                for p in item:
+                    project_map[p.id] = p.name
+            else:
+                project_map[item.id] = item.name
+        return project_map
+    except Exception as e:
+        logger.exception(f"Error fetching Todoist projects: {e}")
+        return {}

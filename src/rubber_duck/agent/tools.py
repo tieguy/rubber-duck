@@ -510,44 +510,24 @@ def query_todoist(filter_query: str) -> str:
     Returns:
         Formatted task list or error message
     """
-    from rubber_duck.integrations.todoist import get_client
-
-    client = get_client()
-    if not client:
-        return ERR_TODOIST_NOT_CONFIGURED
+    from rubber_duck.integrations.todoist import get_tasks_by_filter, get_projects
 
     try:
-        # filter_tasks returns an Iterator[list[Task]], flatten it
-        task_batches = run_async(
-            asyncio.to_thread(lambda: list(client.filter_tasks(query=filter_query)))
-        )
-        # Flatten the list of lists
-        tasks = [task for batch in task_batches for task in batch]
+        tasks = run_async(get_tasks_by_filter(filter_query))
 
         if not tasks:
             return f"No tasks found matching '{filter_query}'"
 
-        # Build project ID -> name map for display
-        project_map = {}
-        try:
-            project_result = run_async(
-                asyncio.to_thread(lambda: list(client.get_projects()))
-            )
-            for item in project_result:
-                if isinstance(item, list):
-                    for p in item:
-                        project_map[p.id] = p.name
-                else:
-                    project_map[item.id] = item.name
-        except Exception:
-            pass  # Gracefully degrade if project fetch fails
+        # Get project names for display
+        project_map = run_async(get_projects())
 
         lines = [f"Found {len(tasks)} task(s):"]
         for t in tasks[:20]:
-            due = f" (due: {t.due.string})" if t.due else ""
-            labels = f" [{', '.join(t.labels)}]" if t.labels else ""
-            project = f" (project: {project_map.get(t.project_id, t.project_id)})" if t.project_id else ""
-            lines.append(f"- [ID:{t.id}] {t.content}{due}{labels}{project}")
+            due = f" (due: {t['due']})" if t.get("due") else ""
+            labels = f" [{', '.join(t['labels'])}]" if t.get("labels") else ""
+            proj_id = t.get("project_id")
+            project = f" (project: {project_map.get(proj_id, proj_id)})" if proj_id else ""
+            lines.append(f"- [ID:{t['id']}] {t['content']}{due}{labels}{project}")
 
         if len(tasks) > 20:
             lines.append(f"... and {len(tasks) - 20} more")
@@ -574,26 +554,20 @@ def create_todoist_task(
     Returns:
         Created task info or error message
     """
-    from rubber_duck.integrations.todoist import get_client
-
-    client = get_client()
-    if not client:
-        return ERR_TODOIST_NOT_CONFIGURED
+    from rubber_duck.integrations.todoist import create_task
 
     try:
-        kwargs = {"content": content}
-        if due_string:
-            kwargs["due_string"] = due_string
-        if project_id:
-            kwargs["project_id"] = project_id
-        if labels:
-            kwargs["labels"] = labels
+        task = run_async(create_task(
+            content=content,
+            due_string=due_string,
+            project_id=project_id,
+            labels=labels,
+        ))
 
-        task = run_async(
-            asyncio.to_thread(client.add_task, **kwargs)
-        )
+        if not task:
+            return ERR_TODOIST_NOT_CONFIGURED
 
-        return f"Created task: {task.content} [ID:{task.id}]\nURL: {task.url}"
+        return f"Created task: {task['content']} [ID:{task['id']}]\nURL: {task['url']}"
     except Exception as e:
         return f"Error creating task: {e}"
 
