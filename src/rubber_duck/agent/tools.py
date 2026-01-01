@@ -1344,21 +1344,21 @@ TOOL_SCHEMAS = [
             "required": ["confirm"],
         },
     },
-    # Issue tracking (bd)
+    # Issue tracking (bd) - for rubber-duck CODEBASE issues, NOT personal tasks
     {
         "name": "bd_ready",
-        "description": "List issues ready to work on.",
+        "description": "List development issues for the rubber-duck CODEBASE that are ready to work on. These are code/feature issues, NOT personal tasks - use Todoist for personal tasks.",
         "input_schema": {"type": "object", "properties": {}, "required": []},
     },
     {
         "name": "bd_show",
-        "description": "Show details of a specific issue.",
+        "description": "Show details of a rubber-duck codebase development issue. NOT for personal tasks.",
         "input_schema": {
             "type": "object",
             "properties": {
                 "issue_id": {
                     "type": "string",
-                    "description": "The issue ID to show",
+                    "description": "The issue ID (e.g., 'rubber-duck-abc')",
                 }
             },
             "required": ["issue_id"],
@@ -1366,13 +1366,13 @@ TOOL_SCHEMAS = [
     },
     {
         "name": "bd_update",
-        "description": "Update the status of an issue.",
+        "description": "Update the status of a rubber-duck codebase development issue. NOT for personal tasks.",
         "input_schema": {
             "type": "object",
             "properties": {
                 "issue_id": {
                     "type": "string",
-                    "description": "The issue ID to update",
+                    "description": "The issue ID to update (e.g., 'rubber-duck-abc')",
                 },
                 "status": {
                     "type": "string",
@@ -1384,13 +1384,13 @@ TOOL_SCHEMAS = [
     },
     {
         "name": "bd_close",
-        "description": "Close a completed issue.",
+        "description": "Close a completed rubber-duck codebase development issue. NOT for personal tasks - use complete_todoist_task for those.",
         "input_schema": {
             "type": "object",
             "properties": {
                 "issue_id": {
                     "type": "string",
-                    "description": "The issue ID to close",
+                    "description": "The issue ID to close (e.g., 'rubber-duck-abc')",
                 }
             },
             "required": ["issue_id"],
@@ -1398,12 +1398,12 @@ TOOL_SCHEMAS = [
     },
     {
         "name": "bd_sync",
-        "description": "Sync bd issues with git.",
+        "description": "Sync rubber-duck codebase issues with git. For development workflow only.",
         "input_schema": {"type": "object", "properties": {}, "required": []},
     },
     {
         "name": "bd_create",
-        "description": "Create a new issue for tracking work.",
+        "description": "Create a new development issue for tracking work on the rubber-duck CODEBASE. NOT for personal tasks - use create_todoist_task for those.",
         "input_schema": {
             "type": "object",
             "properties": {

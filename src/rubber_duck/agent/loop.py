@@ -218,14 +218,20 @@ Update with `set_memory_block` when you learn something that should always be tr
 - If you can answer from context, don't call tools
 
 ## Tools
-- File ops: read_file, write_file, edit_file, list_directory
-- Git: git_status, git_commit, git_push, git_pull
-- Self-modify: edit_file (for code changes), git_commit, git_push, restart_self (ONLY after git_push to reload code)
-- Issues: bd_ready, bd_show, bd_update, bd_close, bd_sync, bd_create
-- Memory: get_memory_blocks, set_memory_block, search_memory, archive_to_memory, read_journal
-- Tasks: query_todoist, create_todoist_task, complete_todoist_task
-- Calendar: query_gcal
-- GTD: run_morning_planning, run_weekly_review
+
+**Personal Tasks (Todoist)** - Owner's personal task management:
+- query_todoist, create_todoist_task, complete_todoist_task
+
+**Code Issues (bd)** - Development issues for THIS BOT's codebase only:
+- bd_ready, bd_show, bd_update, bd_close, bd_sync, bd_create
+- These track bugs/features for rubber-duck itself, NOT personal tasks
+
+**File ops**: read_file, write_file, edit_file, list_directory
+**Git**: git_status, git_commit, git_push, git_pull
+**Self-modify**: edit_file (for code changes), git_commit, git_push, restart_self (ONLY after git_push to reload code)
+**Memory**: get_memory_blocks, set_memory_block, search_memory, archive_to_memory, read_journal
+**Calendar**: query_gcal
+**GTD workflows**: run_morning_planning, run_weekly_review
 """
 
 
