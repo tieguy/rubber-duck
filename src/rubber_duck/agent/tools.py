@@ -329,10 +329,10 @@ def get_memory_blocks() -> str:
 
 
 def set_memory_block(name: str, value: str) -> str:
-    """Update a Letta memory block.
+    """Create or update a Letta memory block.
 
     Args:
-        name: Block label (e.g., "persona", "current_focus")
+        name: Block label (e.g., "persona", "current_focus", "communication")
         value: New block value
 
     Returns:
@@ -349,15 +349,25 @@ def set_memory_block(name: str, value: str) -> str:
         if not agent_id:
             return ERR_AGENT_NOT_FOUND
 
-        # Update block directly
-        client.agents.blocks.update(
-            agent_id=agent_id,
-            block_label=name,
-            value=value,
-        )
-        return f"Updated memory block '{name}'"
+        # Try to update existing block first
+        try:
+            client.agents.blocks.update(
+                agent_id=agent_id,
+                block_label=name,
+                value=value,
+            )
+            return f"Updated memory block '{name}'"
+        except Exception as update_err:
+            # If block doesn't exist, try to create it
+            if "404" in str(update_err) or "not found" in str(update_err).lower():
+                client.agents.blocks.create(
+                    agent_id=agent_id,
+                    block={"label": name, "value": value},
+                )
+                return f"Created memory block '{name}'"
+            raise  # Re-raise if it's a different error
     except Exception as e:
-        return f"Error updating memory block: {e}"
+        return f"Error setting memory block: {e}"
 
 
 def search_memory(query: str) -> str:
