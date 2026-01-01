@@ -250,7 +250,7 @@ async def generate_nudge(nudge_name: str, prompt_hint: str, tasks_context: str) 
     """Generate a nudge message using the Letta agent.
 
     Args:
-        nudge_name: Name of the nudge (e.g., "exercise", "asa")
+        nudge_name: Name of the nudge (e.g., "exercise", "family")
         prompt_hint: Hint about the nudge's focus
         tasks_context: Formatted string of relevant tasks
 

@@ -5,7 +5,7 @@ def query_todoist(filter_query: str) -> str:
     should work on. Common filters:
     - "today" - tasks due today
     - "overdue" - overdue tasks
-    - "@label" - tasks with a specific label (e.g., "@asa", "@krissa")
+    - "@label" - tasks with a specific label (e.g., "@home", "@work")
     - "#Project" - tasks in a specific project
     - "all" - all incomplete tasks
 

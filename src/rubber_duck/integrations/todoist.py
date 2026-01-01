@@ -25,7 +25,7 @@ async def get_tasks_by_filter(filter_query: str) -> list[dict]:
     """Get tasks matching a Todoist filter query.
 
     Args:
-        filter_query: Todoist filter string (e.g., "@asa", "#Health", "today")
+        filter_query: Todoist filter string (e.g., "@home", "#Health", "today")
 
     Returns:
         List of task dicts with keys: id, content, description, due, labels, project_id

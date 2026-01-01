@@ -27,9 +27,9 @@ HIERARCHY_FILE = Path("category_hierarchy.json")
 IMPORT_CATEGORIES = {"Self", "Volunteering"}
 
 # Label mappings based on category names
+# Add your own person/context labels here
 PERSON_LABELS = {
-    "asa": "@asa",
-    "krissa": "@krissa",
+    # "person_name": "@label",
 }
 FAMILY_KEYWORDS = ["february getaway", "family"]
 
