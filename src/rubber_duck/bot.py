@@ -29,7 +29,7 @@ class RubberDuck(commands.Bot):
 
     async def setup_hook(self) -> None:
         """Called when the bot is starting up."""
-        self.scheduler = await setup_scheduler(self)
+        self.scheduler = setup_scheduler(self)
         logger.info("Scheduler initialized")
 
     async def on_ready(self) -> None:
