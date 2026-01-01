@@ -614,9 +614,9 @@ def complete_todoist_task(task_id: str) -> str:
         return ERR_TODOIST_NOT_CONFIGURED
 
     try:
-        # close_task expects task_id as positional argument
+        # close expects task_id as positional argument
         run_async(
-            asyncio.to_thread(client.close_task, task_id)
+            asyncio.to_thread(client.close, task_id)
         )
         return f"Completed task {task_id}"
     except Exception as e:
