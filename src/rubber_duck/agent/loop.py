@@ -28,14 +28,23 @@ logger = logging.getLogger(__name__)
 MODEL_OPUS = "claude-opus-4-5-20251101"  # Best reasoning, use for quality interactions
 MODEL_SONNET = "claude-sonnet-4-20250514"  # Fast execution, use for simple tasks
 MAX_TOOL_CALLS = 20
+MAX_TOOL_CALLS_SIMPLE = 5  # Tighter limit for simple operations
 TIMEOUT = 60
 
 # Patterns for simple execution tasks (use Sonnet)
+# These use re.search so they can match anywhere in the message
 SIMPLE_TASK_PATTERNS = [
-    r"^(complete|close|finish|done|check off)\b",  # Task completion
-    r"^(add|create|make)\s+(a\s+)?(task|todo|reminder)\b",  # Task creation
+    r"\b(complete|close|finish|done|check off|mark.{0,20}done)\b",  # Task completion
+    r"\b(add|create|make)\s+(a\s+)?(task|todo|reminder)\b",  # Task creation
+    r"^(yes|no|ok|sure|yep|nope|do it|go ahead|sounds good)\b",  # Confirmations
     r"^query\s+",  # Raw queries
 ]
+
+
+def _is_simple_task(user_message: str) -> bool:
+    """Check if message matches simple task patterns."""
+    msg_lower = user_message.lower().strip()
+    return any(re.search(pattern, msg_lower) for pattern in SIMPLE_TASK_PATTERNS)
 
 
 def _select_model(user_message: str, is_nudge: bool = False) -> str:
@@ -47,10 +56,8 @@ def _select_model(user_message: str, is_nudge: bool = False) -> str:
     if is_nudge:
         return MODEL_OPUS  # Nudges always need quality thinking
 
-    msg_lower = user_message.lower().strip()
-    for pattern in SIMPLE_TASK_PATTERNS:
-        if re.match(pattern, msg_lower):
-            return MODEL_SONNET
+    if _is_simple_task(user_message):
+        return MODEL_SONNET
 
     # Default to Opus for everything else (advice, questions, show/list, etc.)
     return MODEL_OPUS
@@ -204,6 +211,12 @@ Update with `set_memory_block` when you learn something that should always be tr
 - Update memory blocks for persistent identity changes
 - Commit important file changes to git for provenance
 
+## Efficiency Guidelines
+- For simple task operations (complete, add, query), use ONLY the required tool and respond immediately
+- Don't search memory, update blocks, or archive for routine task operations
+- Minimize tool calls - each one costs time and money
+- If you can answer from context, don't call tools
+
 ## Tools
 - File ops: read_file, write_file, edit_file, list_directory
 - Git: git_status, git_commit, git_push, git_pull
@@ -284,9 +297,11 @@ async def run_agent_loop(user_message: str, context: str = "", is_nudge: bool = 
 
     client = AsyncAnthropic(api_key=api_key)
 
-    # Select model and build system prompt
-    model = _select_model(user_message, is_nudge=is_nudge)
-    logger.info(f"Using model: {model}")
+    # Select model and determine limits based on task complexity
+    is_simple = _is_simple_task(user_message) and not is_nudge
+    model = MODEL_SONNET if is_simple else _select_model(user_message, is_nudge=is_nudge)
+    max_tools = MAX_TOOL_CALLS_SIMPLE if is_simple else MAX_TOOL_CALLS
+    logger.info(f"Using model: {model}, max_tools: {max_tools}, simple: {is_simple}")
     system_prompt = _build_system_prompt(_get_memory_blocks())
 
     # Build initial message with context
@@ -297,7 +312,7 @@ async def run_agent_loop(user_message: str, context: str = "", is_nudge: bool = 
     _log_to_journal("user_message", {"content": user_message, "context": context})
 
     tool_calls = 0
-    while tool_calls < MAX_TOOL_CALLS:
+    while tool_calls < max_tools:
         try:
             response = await client.messages.create(
                 model=model,
