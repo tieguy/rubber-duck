@@ -358,12 +358,11 @@ def set_memory_block(name: str, value: str) -> str:
             )
             return f"Updated memory block '{name}'"
         except Exception as update_err:
-            # If block doesn't exist, try to create it
+            # If block doesn't exist, create it and attach to agent
             if "404" in str(update_err) or "not found" in str(update_err).lower():
-                client.agents.blocks.create(
-                    agent_id=agent_id,
-                    block={"label": name, "value": value},
-                )
+                # Create block at top level, then attach to agent
+                block = client.blocks.create(label=name, value=value)
+                client.agents.blocks.attach(block.id, agent_id=agent_id)
                 return f"Created memory block '{name}'"
             raise  # Re-raise if it's a different error
     except Exception as e:
