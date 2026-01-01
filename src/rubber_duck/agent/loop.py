@@ -14,13 +14,28 @@ import json
 import logging
 import os
 import re
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Awaitable, Callable
 
 from anthropic import AsyncAnthropic
 
 from rubber_duck.agent.tools import TOOL_SCHEMAS, execute_tool
 from rubber_duck.agent.utils import run_async
+
+
+@dataclass
+class AgentCallbacks:
+    """Callbacks for interactive agent progress reporting.
+
+    All callbacks are optional. If not provided, the agent runs silently.
+    """
+
+    on_tool_start: Callable[[str], Awaitable[None]] | None = None  # tool name
+    on_tool_end: Callable[[str, bool], Awaitable[None]] | None = None  # tool name, success
+    check_cancelled: Callable[[], Awaitable[bool]] | None = None  # returns True if cancelled
+    on_checkpoint: Callable[[int], Awaitable[bool]] | None = None  # tools used → continue?
 
 logger = logging.getLogger(__name__)
 
@@ -394,6 +409,149 @@ async def run_agent_loop(user_message: str, context: str = "", is_nudge: bool = 
         messages.append({"role": "user", "content": tool_results})
 
     return "I've made too many tool calls. Let me know what else you need."
+
+
+@dataclass
+class ToolStatus:
+    """Track tool execution status for progress reporting."""
+
+    name: str
+    success: bool | None = None  # None = in progress
+
+    def to_str(self) -> str:
+        if self.success is None:
+            return f"🔧 {self.name} ..."
+        elif self.success:
+            return f"🔧 {self.name} ✓"
+        else:
+            return f"🔧 {self.name} ✗"
+
+
+def _format_tool_log(tools: list[ToolStatus]) -> str:
+    """Format tool status list for display."""
+    return "\n".join(t.to_str() for t in tools)
+
+
+async def run_agent_loop_interactive(
+    user_message: str,
+    callbacks: AgentCallbacks,
+    context: str = "",
+) -> str:
+    """Run the agent loop with interactive progress reporting.
+
+    Args:
+        user_message: The user's message
+        callbacks: Callbacks for progress updates and cancellation
+        context: Optional additional context
+
+    Returns:
+        Agent's response text or cancellation message
+    """
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        return "I'm not properly configured. ANTHROPIC_API_KEY is missing."
+
+    client = AsyncAnthropic(api_key=api_key)
+
+    # Interactive mode always uses Opus and full tool limit
+    model = MODEL_OPUS
+    logger.info(f"Interactive mode: using {model}")
+    system_prompt = _build_system_prompt(_get_memory_blocks())
+
+    # Build initial message with context
+    full_message = f"[Context: {context}]\n\n{user_message}" if context else user_message
+    messages = _get_recent_context()
+    messages.append({"role": "user", "content": full_message})
+
+    _log_to_journal("user_message", {"content": user_message, "context": context})
+
+    tool_calls = 0
+    tool_log: list[ToolStatus] = []  # Track all tools for summary
+
+    while True:
+        # Check for cancellation before each API call
+        if callbacks.check_cancelled and await callbacks.check_cancelled():
+            summary = " → ".join(t.to_str() for t in tool_log) if tool_log else "nothing yet"
+            return f"Cancelled. Was working on: {summary}"
+
+        # Check if we've hit the checkpoint
+        if tool_calls >= MAX_TOOL_CALLS and tool_calls % MAX_TOOL_CALLS == 0:
+            if callbacks.on_checkpoint:
+                should_continue = await callbacks.on_checkpoint(tool_calls)
+                if not should_continue:
+                    summary = " → ".join(t.to_str() for t in tool_log)
+                    return f"Stopped at checkpoint ({tool_calls} tools). Progress: {summary}"
+            else:
+                # No checkpoint callback, use old behavior
+                return "I've made too many tool calls. Let me know what else you need."
+
+        try:
+            response = await client.messages.create(
+                model=model,
+                max_tokens=4096,
+                system=system_prompt,
+                tools=TOOL_SCHEMAS,
+                messages=messages,
+            )
+        except Exception as e:
+            logger.exception(f"Anthropic API error: {e}")
+            return "I encountered an error communicating with my brain. Please try again."
+
+        tool_use_blocks = [b for b in response.content if b.type == "tool_use"]
+        text_blocks = [b for b in response.content if b.type == "text"]
+
+        # No tools means final response
+        if not tool_use_blocks:
+            return _extract_final_text(text_blocks)
+
+        # Execute tools with progress callbacks
+        tool_results = []
+        for block in tool_use_blocks:
+            tool_name = block.name
+
+            # Check cancellation before each tool
+            if callbacks.check_cancelled and await callbacks.check_cancelled():
+                summary = " → ".join(t.to_str() for t in tool_log)
+                return f"Cancelled. Was working on: {summary}"
+
+            # Report tool start
+            status = ToolStatus(name=tool_name)
+            tool_log.append(status)
+            if callbacks.on_tool_start:
+                await callbacks.on_tool_start(tool_name)
+
+            # Execute tool
+            tool_input = block.input if isinstance(block.input, dict) else {}
+            _log_to_journal("tool_call", {"tool": tool_name, "args": tool_input})
+            result = execute_tool(tool_name, tool_input)
+            result_log = result[:500] + ("..." if len(result) > 500 else "")
+            _log_to_journal("tool_result", {"tool": tool_name, "result": result_log})
+
+            success = _tool_succeeded(result)
+            status.success = success
+
+            # Report tool end
+            if callbacks.on_tool_end:
+                await callbacks.on_tool_end(tool_name, success)
+
+            tool_results.append({
+                "type": "tool_result",
+                "tool_use_id": block.id,
+                "content": result,
+            })
+
+        tool_calls += len(tool_results)
+
+        # Success-gated early return
+        all_succeeded = all(_tool_succeeded(r["content"]) for r in tool_results)
+        response_text = "\n".join(b.text for b in text_blocks) if text_blocks else ""
+        if text_blocks and all_succeeded and not _is_intent_text(response_text):
+            logger.info("Early return: tools succeeded and final response available")
+            return _extract_final_text(text_blocks)
+
+        # Continue loop
+        messages.append({"role": "assistant", "content": response.content})
+        messages.append({"role": "user", "content": tool_results})
 
 
 async def generate_nudge(nudge_config: dict) -> str:
