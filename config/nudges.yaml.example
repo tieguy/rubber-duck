@@ -1,0 +1,32 @@
+# Rubber Duck Nudge Configuration (EXAMPLE)
+#
+# Copy this to state/nudges.yaml and customize with your personal info.
+#
+# Each nudge has:
+#   - name: Identifier for this nudge (used in logs and scheduling)
+#   - schedule: Time to send (HH:MM in local timezone)
+#   - days: When to send (optional, defaults to daily)
+#       - "daily" or omit: every day
+#       - "weekdays": Monday-Friday
+#       - "weekends": Saturday-Sunday
+#       - [mon, wed, fri]: specific days (use: mon, tue, wed, thu, fri, sat, sun)
+#   - context_query: Todoist filter to find relevant tasks
+#   - prompt_hint: Guidance for the LLM about this nudge's focus
+
+nudges:
+  - name: exercise
+    schedule: "15:00"
+    days: weekdays
+    context_query: "@exercise | #health"
+    prompt_hint: "Remind about physical activity. Focus on movement, energy, breaking from work."
+
+  - name: family_member_1
+    schedule: "17:00"
+    days: weekdays
+    context_query: "@family_member_1"
+    prompt_hint: "Connection with family member. Their current interests, activities, quality time."
+
+  - name: partner
+    schedule: "20:00"
+    context_query: "@partner | @family"
+    prompt_hint: "Partnership and shared planning. Appreciation. Discuss upcoming plans."

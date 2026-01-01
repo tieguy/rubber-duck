@@ -11,7 +11,15 @@ from rubber_duck.nudge import send_nudge
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_CONFIG_PATH = Path(__file__).parent.parent.parent / "config" / "nudges.yaml"
+# Config paths in priority order:
+# 1. NUDGE_CONFIG_PATH env var (override)
+# 2. state/nudges.yaml (private, gitignored, persistent on Fly.io)
+# 3. config/nudges.yaml (fallback/example)
+REPO_ROOT = Path(__file__).parent.parent.parent
+CONFIG_PATHS = [
+    REPO_ROOT / "state" / "nudges.yaml",
+    REPO_ROOT / "config" / "nudges.yaml",
+]
 
 # Day name to cron day-of-week mapping (0=Mon, 6=Sun in APScheduler)
 DAY_MAP = {
@@ -62,13 +70,38 @@ def parse_days(days_config) -> str | None:
 
 
 def load_nudge_config(config_path: Path | None = None) -> dict:
-    """Load nudge configuration from YAML file."""
-    path = config_path or DEFAULT_CONFIG_PATH
+    """Load nudge configuration from YAML file.
 
-    if not path.exists():
-        logger.warning(f"No nudge config found at {path}, using empty config")
-        return {"nudges": []}
+    Checks paths in priority order:
+    1. Explicit config_path argument
+    2. NUDGE_CONFIG_PATH environment variable
+    3. state/nudges.yaml (private, gitignored)
+    4. config/nudges.yaml (public template/fallback)
+    """
+    import os
 
+    # Priority 1: explicit argument
+    if config_path and config_path.exists():
+        path = config_path
+    # Priority 2: environment variable
+    elif env_path := os.environ.get("NUDGE_CONFIG_PATH"):
+        path = Path(env_path)
+        if not path.exists():
+            logger.warning(f"NUDGE_CONFIG_PATH set but file not found: {path}")
+            return {"nudges": []}
+    # Priority 3-4: check config paths in order
+    else:
+        path = None
+        for candidate in CONFIG_PATHS:
+            if candidate.exists():
+                path = candidate
+                break
+
+        if not path:
+            logger.warning("No nudge config found, using empty config")
+            return {"nudges": []}
+
+    logger.info(f"Loading nudge config from: {path}")
     with open(path) as f:
         config = yaml.safe_load(f)
 

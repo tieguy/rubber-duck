@@ -150,3 +150,13 @@ uv add <pkg>     # Add a dependency
 ## Worktrees
 
 Use `.worktrees/` for isolated development branches.
+
+## Private Configuration
+
+This repo is designed to be public. Private data lives in `state/` (gitignored, persistent on Fly.io).
+
+**Nudge config:** `state/nudges.yaml` (see `config/nudges.yaml.example` for template)
+
+**Private docs** (gitignored):
+- `docs/brainstorm-context.md`
+- `docs/plans/2025-12-25-rubber-duck-design.md`

@@ -7,6 +7,10 @@ dev-the-duck.sh
 *.jsonl
 category_hierarchy.json
 
+# Private docs (contain personal info)
+docs/brainstorm-context.md
+docs/plans/2025-12-25-rubber-duck-design.md
+
 # Python
 __pycache__/
 *.py[cod]
