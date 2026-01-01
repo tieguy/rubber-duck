@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2025 Rubber Duck Contributors
+# SPDX-License-Identifier: MPL-2.0
+
 """Weekly review workflow for GTD-based project health assessment."""
 
 import os

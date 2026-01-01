@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2025 Rubber Duck Contributors
+# SPDX-License-Identifier: MPL-2.0
+
 """Debug script to inspect the Letta agent's system prompt and tools."""
 
 import os

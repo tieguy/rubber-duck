@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2025 Rubber Duck Contributors
+# SPDX-License-Identifier: MPL-2.0
+
 """Discord bot client for Rubber Duck."""
 
 import logging

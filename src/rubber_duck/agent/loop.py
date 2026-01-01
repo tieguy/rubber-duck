@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2025 Rubber Duck Contributors
+# SPDX-License-Identifier: MPL-2.0
+
 """Agent loop for Rubber Duck using Anthropic SDK.
 
 Implements the Strix-style agent pattern:

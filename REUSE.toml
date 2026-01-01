@@ -1,0 +1,58 @@
+version = 1
+SPDX-PackageName = "Rubber Duck"
+SPDX-PackageSupplier = "Rubber Duck Contributors"
+SPDX-PackageDownloadLocation = "https://github.com/tieguy/rubber-duck"
+
+[[annotations]]
+path = ".devcontainer/devcontainer.json"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2025 Rubber Duck Contributors"
+SPDX-License-Identifier = "MPL-2.0"
+
+[[annotations]]
+path = ".claude/**.json"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2025 Rubber Duck Contributors"
+SPDX-License-Identifier = "MPL-2.0"
+
+[[annotations]]
+path = "**.md"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2025 Rubber Duck Contributors"
+SPDX-License-Identifier = "MPL-2.0"
+
+[[annotations]]
+path = "docs/**.md"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2025 Rubber Duck Contributors"
+SPDX-License-Identifier = "MPL-2.0"
+
+[[annotations]]
+path = "docs/**/**.md"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2025 Rubber Duck Contributors"
+SPDX-License-Identifier = "MPL-2.0"
+
+[[annotations]]
+path = "uv.lock"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2025 Rubber Duck Contributors"
+SPDX-License-Identifier = "MPL-2.0"
+
+[[annotations]]
+path = "state/.gitkeep"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2025 Rubber Duck Contributors"
+SPDX-License-Identifier = "MPL-2.0"
+
+[[annotations]]
+path = "state/**/.gitkeep"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2025 Rubber Duck Contributors"
+SPDX-License-Identifier = "MPL-2.0"
+
+[[annotations]]
+path = "LICENSES/**.txt"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "Mozilla Foundation"
+SPDX-License-Identifier = "MPL-2.0"

@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2025 Rubber Duck Contributors
+# SPDX-License-Identifier: MPL-2.0
+
 """Local tool definitions for Rubber Duck agent.
 
 Tools execute in the main Python process, not in Letta's sandbox.

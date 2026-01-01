@@ -1,9 +1,12 @@
+# SPDX-FileCopyrightText: 2025 Rubber Duck Contributors
+# SPDX-License-Identifier: MPL-2.0
+
 [project]
 name = "rubber-duck"
 version = "0.1.0"
 description = "A Discord bot that nudges you with context-aware prompts and remembers everything"
 requires-python = ">=3.11"
-license = { text = "MIT" }
+license = { text = "MPL-2.0" }
 authors = [
     { name = "Luis Villa", email = "luis@lu.is" }
 ]
