@@ -6,10 +6,72 @@
 import asyncio
 import logging
 import os
+import random
+from collections.abc import Callable
+from typing import TypeVar
 
 from todoist_api_python.api import TodoistAPI
 
 logger = logging.getLogger(__name__)
+
+# Retry configuration
+MAX_RETRIES = 3
+BASE_DELAY = 1.0  # seconds
+MAX_DELAY = 30.0  # seconds
+
+T = TypeVar("T")
+
+
+async def _retry_with_backoff(
+    operation: Callable[[], T],
+    operation_name: str = "Todoist API call",
+) -> T:
+    """Execute an operation with exponential backoff retry on rate limits.
+
+    Args:
+        operation: Sync callable to execute (will be wrapped in to_thread)
+        operation_name: Description for logging
+
+    Returns:
+        Result of the operation
+
+    Raises:
+        Exception: If all retries exhausted or non-retryable error
+    """
+    last_exception = None
+
+    for attempt in range(MAX_RETRIES):
+        try:
+            return await asyncio.to_thread(operation)
+        except Exception as e:
+            last_exception = e
+            error_str = str(e).lower()
+
+            # Check if this is a rate limit (429) or temporary server error (5xx)
+            is_rate_limit = "429" in error_str or "rate limit" in error_str
+            is_server_error = any(
+                code in error_str for code in ["500", "502", "503", "504"]
+            )
+
+            if is_rate_limit or is_server_error:
+                if attempt < MAX_RETRIES - 1:
+                    # Exponential backoff with jitter
+                    delay = min(BASE_DELAY * (2**attempt), MAX_DELAY)
+                    jitter = random.uniform(0, delay * 0.1)
+                    wait_time = delay + jitter
+
+                    error_type = "rate limit" if is_rate_limit else "server error"
+                    logger.warning(
+                        f"{operation_name}: {error_type} (attempt {attempt + 1}/{MAX_RETRIES}), "
+                        f"retrying in {wait_time:.1f}s"
+                    )
+                    await asyncio.sleep(wait_time)
+                    continue
+            # Non-retryable error, raise immediately
+            raise
+
+    # All retries exhausted
+    raise last_exception  # type: ignore[misc]
 
 
 def get_client() -> TodoistAPI | None:
@@ -38,10 +100,10 @@ async def get_tasks_by_filter(filter_query: str) -> list[dict]:
         return []
 
     try:
-        # Wrap sync call to avoid blocking event loop
-        # filter_tasks returns Iterator[list[Task]], flatten it
-        task_batches = await asyncio.to_thread(
-            lambda: list(client.filter_tasks(query=filter_query))
+        # Use retry wrapper for rate limit handling
+        task_batches = await _retry_with_backoff(
+            lambda: list(client.filter_tasks(query=filter_query)),
+            "get_tasks_by_filter",
         )
         tasks = [task for batch in task_batches for task in batch]
         return [
@@ -95,9 +157,10 @@ async def create_task(
         if project_id:
             kwargs["project_id"] = project_id
 
-        # Wrap sync call to avoid blocking event loop
-        task = await asyncio.to_thread(
-            lambda: client.add_task(**kwargs)
+        # Use retry wrapper for rate limit handling
+        task = await _retry_with_backoff(
+            lambda: client.add_task(**kwargs),
+            "create_task",
         )
         return {
             "id": task.id,
@@ -126,8 +189,11 @@ async def complete_task(task_id: str) -> bool:
         return False
 
     try:
-        # complete_task marks task as done (recurring tasks get rescheduled)
-        await asyncio.to_thread(client.complete_task, task_id)
+        # Use retry wrapper for rate limit handling
+        await _retry_with_backoff(
+            lambda: client.complete_task(task_id),
+            "complete_task",
+        )
         return True
     except Exception as e:
         logger.exception(f"Error completing Todoist task: {e}")
@@ -145,8 +211,10 @@ async def get_projects() -> dict[str, str]:
         return {}
 
     try:
-        project_result = await asyncio.to_thread(
-            lambda: list(client.get_projects())
+        # Use retry wrapper for rate limit handling
+        project_result = await _retry_with_backoff(
+            lambda: list(client.get_projects()),
+            "get_projects",
         )
         project_map = {}
         for item in project_result:
@@ -172,8 +240,10 @@ async def list_projects() -> list[dict]:
         return []
 
     try:
-        result = await asyncio.to_thread(
-            lambda: list(client.get_projects())
+        # Use retry wrapper for rate limit handling
+        result = await _retry_with_backoff(
+            lambda: list(client.get_projects()),
+            "list_projects",
         )
 
         # Flatten if nested (API returns Iterator[list[Project]])
@@ -230,8 +300,10 @@ async def update_task(
         return False  # Nothing to update
 
     try:
-        await asyncio.to_thread(
-            lambda: client.update_task(task_id=task_id, **kwargs)
+        # Use retry wrapper for rate limit handling
+        await _retry_with_backoff(
+            lambda: client.update_task(task_id=task_id, **kwargs),
+            "update_task",
         )
         return True
     except Exception as e:
@@ -261,8 +333,10 @@ async def create_project(
         if parent_id:
             kwargs["parent_id"] = parent_id
 
-        project = await asyncio.to_thread(
-            lambda: client.add_project(**kwargs)
+        # Use retry wrapper for rate limit handling
+        project = await _retry_with_backoff(
+            lambda: client.add_project(**kwargs),
+            "create_project",
         )
         return {
             "id": project.id,
@@ -294,25 +368,23 @@ async def move_task(task_id: str, project_id: str) -> bool:
     if not api_token:
         return False
 
-    try:
-        response = await asyncio.to_thread(
-            lambda: requests.post(
-                "https://api.todoist.com/sync/v9/sync",
-                headers={"Authorization": f"Bearer {api_token}"},
-                json={
-                    "commands": [
-                        {
-                            "type": "item_move",
-                            "uuid": str(uuid.uuid4()),
-                            "args": {
-                                "id": task_id,
-                                "project_id": project_id,
-                            },
-                        }
-                    ]
-                },
-                timeout=30,
-            )
+    def _do_move():
+        response = requests.post(
+            "https://api.todoist.com/sync/v9/sync",
+            headers={"Authorization": f"Bearer {api_token}"},
+            json={
+                "commands": [
+                    {
+                        "type": "item_move",
+                        "uuid": str(uuid.uuid4()),
+                        "args": {
+                            "id": task_id,
+                            "project_id": project_id,
+                        },
+                    }
+                ]
+            },
+            timeout=30,
         )
         response.raise_for_status()
         result = response.json()
@@ -321,10 +393,13 @@ async def move_task(task_id: str, project_id: str) -> bool:
         if "sync_status" in result:
             for cmd_uuid, status in result["sync_status"].items():
                 if status != "ok" and isinstance(status, dict) and "error" in status:
-                    logger.error(f"Sync API error: {status['error']}")
-                    return False
+                    raise Exception(f"Sync API error: {status['error']}")
 
         return True
+
+    try:
+        # Use retry wrapper for rate limit handling
+        return await _retry_with_backoff(_do_move, "move_task")
     except Exception as e:
         logger.exception(f"Error moving Todoist task: {e}")
         return False
