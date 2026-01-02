@@ -239,6 +239,41 @@ async def update_task(
         return False
 
 
+async def create_project(
+    name: str,
+    parent_id: str | None = None,
+) -> dict | None:
+    """Create a new project in Todoist.
+
+    Args:
+        name: Project name
+        parent_id: Optional parent project ID (for sub-projects)
+
+    Returns:
+        Created project dict with id, name, url, or None on failure
+    """
+    client = get_client()
+    if not client:
+        return None
+
+    try:
+        kwargs: dict = {"name": name}
+        if parent_id:
+            kwargs["parent_id"] = parent_id
+
+        project = await asyncio.to_thread(
+            lambda: client.add_project(**kwargs)
+        )
+        return {
+            "id": project.id,
+            "name": project.name,
+            "url": project.url,
+        }
+    except Exception as e:
+        logger.exception(f"Error creating Todoist project: {e}")
+        return None
+
+
 async def move_task(task_id: str, project_id: str) -> bool:
     """Move a task to a different project using Todoist Sync API.
 

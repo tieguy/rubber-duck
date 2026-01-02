@@ -658,6 +658,35 @@ def update_todoist_task(
     return f"Error: Failed to update task {task_id} (check logs)"
 
 
+def create_todoist_project(
+    name: str,
+    parent_id: str | None = None,
+) -> str:
+    """Create a project in Todoist.
+
+    Args:
+        name: Project name
+        parent_id: Parent project ID for sub-projects (optional)
+
+    Returns:
+        Created project info or error message
+    """
+    from rubber_duck.integrations.todoist import create_project
+
+    try:
+        project = run_async(create_project(
+            name=name,
+            parent_id=parent_id,
+        ))
+
+        if not project:
+            return ERR_TODOIST_NOT_CONFIGURED
+
+        return f"Created project: {project['name']} [ID:{project['id']}]\nURL: {project['url']}"
+    except Exception as e:
+        return f"Error creating project: {e}"
+
+
 def move_todoist_task(task_id: str, project_id: str) -> str:
     """Move a task to a different project using Todoist Sync API.
 
@@ -1194,6 +1223,24 @@ TOOL_SCHEMAS = [
         },
     },
     {
+        "name": "create_todoist_project",
+        "description": "Create a new project in Todoist.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Project name",
+                },
+                "parent_id": {
+                    "type": "string",
+                    "description": "Parent project ID for sub-projects (optional)",
+                },
+            },
+            "required": ["name"],
+        },
+    },
+    {
         "name": "move_todoist_task",
         "description": "Move a task to a different project.",
         "input_schema": {
@@ -1362,6 +1409,7 @@ TOOL_FUNCTIONS = {
     "complete_todoist_task": complete_todoist_task,
     "list_todoist_projects": list_todoist_projects,
     "update_todoist_task": update_todoist_task,
+    "create_todoist_project": create_todoist_project,
     "move_todoist_task": move_todoist_task,
     "query_gcal": query_gcal,
     "run_morning_planning": run_morning_planning,
