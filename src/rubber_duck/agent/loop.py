@@ -255,6 +255,17 @@ Update with `set_memory_block` when you learn something that should always be tr
 **Memory**: get_memory_blocks, set_memory_block, search_memory, archive_to_memory, read_journal
 **Calendar**: query_gcal
 **GTD workflows**: run_morning_planning, run_weekly_review
+
+## Weekly Review Sessions
+
+When the user wants to do a weekly review, use the weekly_review_conductor to manage the session:
+
+1. Call `weekly_review_conductor("start")` to begin
+2. Follow the conductor's guidance - it tells you which tool to call next
+3. After each sub-review, discuss the results with the user
+4. When user is ready (says "next", "continue", etc.), call `weekly_review_conductor("next")`
+5. Handle user requests between steps (add tasks, answer questions) naturally
+6. The conductor tracks progress - just follow its instructions
 """
 
 
