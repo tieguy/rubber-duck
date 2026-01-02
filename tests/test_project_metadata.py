@@ -186,3 +186,28 @@ def test_set_project_metadata_invalid_type(temp_state_dir):
     )
     assert "Invalid type" in result
     assert "'invalid'" in result
+
+
+def test_find_projects_without_metadata(temp_state_dir):
+    """Find Todoist projects that lack metadata entries."""
+    from rubber_duck.integrations.project_metadata import (
+        find_projects_without_metadata,
+        save_project_metadata,
+    )
+
+    # Metadata exists for one project
+    save_project_metadata({
+        "Known Project": {"type": "project", "goal": "Do stuff"}
+    })
+
+    # Simulate Todoist projects
+    todoist_projects = [
+        {"id": "1", "name": "Known Project"},
+        {"id": "2", "name": "Unknown Project"},
+        {"id": "3", "name": "Another Unknown"},
+    ]
+
+    result = find_projects_without_metadata(todoist_projects)
+    assert len(result) == 2
+    assert "Unknown Project" in [p["name"] for p in result]
+    assert "Another Unknown" in [p["name"] for p in result]

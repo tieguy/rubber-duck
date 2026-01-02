@@ -107,3 +107,16 @@ def set_project_metadata(
 
     action = "Created" if is_new else "Updated"
     return f"{action} metadata for '{project_name}' ({project_type})."
+
+
+def find_projects_without_metadata(todoist_projects: list[dict]) -> list[dict]:
+    """Find Todoist projects that have no metadata entry.
+
+    Args:
+        todoist_projects: List of Todoist project dicts with 'name' key
+
+    Returns:
+        List of projects without metadata entries
+    """
+    metadata = load_project_metadata()
+    return [p for p in todoist_projects if p["name"] not in metadata]
