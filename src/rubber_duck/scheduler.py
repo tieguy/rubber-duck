@@ -9,8 +9,10 @@ from pathlib import Path
 import yaml
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 
 from rubber_duck.nudge import send_nudge
+from rubber_duck.perch import perch_tick
 
 logger = logging.getLogger(__name__)
 
@@ -147,7 +149,18 @@ def setup_scheduler(bot) -> AsyncIOScheduler:
         days_str = day_of_week or "daily"
         logger.info(f"Scheduled nudge '{name}' at {schedule} ({days_str})")
 
+    # Add perch tick for background maintenance (every hour)
+    scheduler.add_job(
+        perch_tick,
+        trigger=IntervalTrigger(hours=1),
+        args=[bot],
+        id="perch_tick",
+        name="Perch tick",
+        replace_existing=True,
+    )
+    logger.info("Scheduled perch tick (hourly)")
+
     scheduler.start()
-    logger.info(f"Scheduler started with {len(nudges)} nudges")
+    logger.info(f"Scheduler started with {len(nudges)} nudges + perch tick")
 
     return scheduler
