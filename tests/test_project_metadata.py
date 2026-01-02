@@ -88,3 +88,67 @@ def test_load_malformed_yaml_returns_empty_dict(temp_state_dir):
     temp_state_dir.write_text("not: valid: yaml: content: {{{")
     result = load_project_metadata()
     assert result == {}
+
+
+def test_set_project_metadata_creates_new(temp_state_dir):
+    """Setting metadata for new project creates entry."""
+    from rubber_duck.integrations.project_metadata import (
+        get_project_meta,
+        set_project_metadata,
+    )
+
+    result = set_project_metadata(
+        project_name="New Project",
+        project_type="project",
+        goal="Build something",
+    )
+
+    assert "New Project" in result
+    meta = get_project_meta("New Project")
+    assert meta["type"] == "project"
+    assert meta["goal"] == "Build something"
+
+
+def test_set_project_metadata_updates_existing(temp_state_dir):
+    """Setting metadata for existing project merges fields."""
+    from rubber_duck.integrations.project_metadata import (
+        get_project_meta,
+        set_project_metadata,
+    )
+
+    # Create initial entry
+    set_project_metadata(
+        project_name="My Project",
+        project_type="project",
+        goal="Original goal",
+        context="Some context",
+    )
+
+    # Update just the goal
+    set_project_metadata(
+        project_name="My Project",
+        project_type="project",
+        goal="Updated goal",
+    )
+
+    meta = get_project_meta("My Project")
+    assert meta["goal"] == "Updated goal"
+    assert meta["context"] == "Some context"  # Preserved
+
+
+def test_set_project_metadata_category(temp_state_dir):
+    """Setting category type works."""
+    from rubber_duck.integrations.project_metadata import (
+        get_project_meta,
+        set_project_metadata,
+    )
+
+    set_project_metadata(
+        project_name="Family",
+        project_type="category",
+        context="Ongoing family stuff",
+    )
+
+    meta = get_project_meta("Family")
+    assert meta["type"] == "category"
+    assert meta["context"] == "Ongoing family stuff"
