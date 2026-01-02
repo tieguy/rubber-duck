@@ -152,3 +152,24 @@ def test_set_project_metadata_category(temp_state_dir):
     meta = get_project_meta("Family")
     assert meta["type"] == "category"
     assert meta["context"] == "Ongoing family stuff"
+
+
+def test_set_project_metadata_returns_created_for_new(temp_state_dir):
+    """Creating new project returns 'Created' message."""
+    from rubber_duck.integrations.project_metadata import set_project_metadata
+
+    result = set_project_metadata(
+        project_name="Brand New",
+        project_type="project",
+        goal="Test",
+    )
+    assert "Created" in result
+
+
+def test_set_project_metadata_returns_updated_for_existing(temp_state_dir):
+    """Updating existing project returns 'Updated' message."""
+    from rubber_duck.integrations.project_metadata import set_project_metadata
+
+    set_project_metadata(project_name="Existing", project_type="project", goal="First")
+    result = set_project_metadata(project_name="Existing", project_type="project", goal="Second")
+    assert "Updated" in result

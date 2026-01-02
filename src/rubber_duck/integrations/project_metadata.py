@@ -101,8 +101,9 @@ def set_project_metadata(
         elif field in existing:
             updated[field] = existing[field]
 
+    is_new = project_name not in metadata
     metadata[project_name] = updated
     save_project_metadata(metadata)
 
-    action = "Updated" if project_name in metadata else "Created"
+    action = "Created" if is_new else "Updated"
     return f"{action} metadata for '{project_name}' ({project_type})."
