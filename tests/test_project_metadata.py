@@ -173,3 +173,16 @@ def test_set_project_metadata_returns_updated_for_existing(temp_state_dir):
     set_project_metadata(project_name="Existing", project_type="project", goal="First")
     result = set_project_metadata(project_name="Existing", project_type="project", goal="Second")
     assert "Updated" in result
+
+
+def test_set_project_metadata_invalid_type(temp_state_dir):
+    """Invalid project type returns error message."""
+    from rubber_duck.integrations.project_metadata import set_project_metadata
+
+    result = set_project_metadata(
+        project_name="Test",
+        project_type="invalid",
+        goal="Test",
+    )
+    assert "Invalid type" in result
+    assert "'invalid'" in result
