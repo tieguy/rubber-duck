@@ -54,6 +54,4 @@ def save_project_metadata(projects: dict) -> None:
     """
     METADATA_PATH.parent.mkdir(parents=True, exist_ok=True)
     with open(METADATA_PATH, "w") as f:
-        yaml.safe_dump(
-            {"projects": projects}, f, default_flow_style=False, allow_unicode=True
-        )
+        yaml.safe_dump({"projects": projects}, f, default_flow_style=False, allow_unicode=True)

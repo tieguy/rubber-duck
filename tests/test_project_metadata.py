@@ -75,9 +75,16 @@ def test_save_creates_file(temp_state_dir):
         save_project_metadata,
     )
 
-    save_project_metadata({
-        "Test Project": {"type": "project", "goal": "Test goal"}
-    })
+    save_project_metadata({"Test Project": {"type": "project", "goal": "Test goal"}})
 
     result = load_project_metadata()
     assert "Test Project" in result
+
+
+def test_load_malformed_yaml_returns_empty_dict(temp_state_dir):
+    """Loading malformed YAML returns empty dict and logs warning."""
+    from rubber_duck.integrations.project_metadata import load_project_metadata
+
+    temp_state_dir.write_text("not: valid: yaml: content: {{{")
+    result = load_project_metadata()
+    assert result == {}
