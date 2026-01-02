@@ -15,6 +15,13 @@ import subprocess
 from pathlib import Path
 
 from rubber_duck.agent.utils import run_async
+from rubber_duck.integrations.tools.weekly_conductor import weekly_review_conductor
+from rubber_duck.integrations.tools.calendar_review import run_calendar_review
+from rubber_duck.integrations.tools.deadline_scan import run_deadline_scan
+from rubber_duck.integrations.tools.waiting_for_review import run_waiting_for_review
+from rubber_duck.integrations.tools.project_review import run_project_review
+from rubber_duck.integrations.tools.category_health import run_category_health
+from rubber_duck.integrations.tools.someday_maybe_review import run_someday_maybe_review
 
 logger = logging.getLogger(__name__)
 
@@ -1282,6 +1289,51 @@ TOOL_SCHEMAS = [
         "description": "Run weekly review - project health, overdue items, waiting-for status.",
         "input_schema": {"type": "object", "properties": {}, "required": []},
     },
+    # Weekly review step tools
+    {
+        "name": "weekly_review_conductor",
+        "description": "Manage weekly review session. Actions: 'start' (begin review), 'status' (current step), 'next' (advance), 'complete' (end), 'abandon' (cancel).",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "description": "Action to perform: start, status, next, complete, abandon"
+                }
+            },
+            "required": ["action"]
+        }
+    },
+    {
+        "name": "run_calendar_review",
+        "description": "Weekly review step 1: Check calendar for tasks to create. (Currently scaffolded)",
+        "input_schema": {"type": "object", "properties": {}}
+    },
+    {
+        "name": "run_deadline_scan",
+        "description": "Weekly review step 2: Scan tasks by deadline urgency (overdue, this week, next week).",
+        "input_schema": {"type": "object", "properties": {}}
+    },
+    {
+        "name": "run_waiting_for_review",
+        "description": "Weekly review step 3: Review waiting-for items with follow-up recommendations.",
+        "input_schema": {"type": "object", "properties": {}}
+    },
+    {
+        "name": "run_project_review",
+        "description": "Weekly review step 4: Assess project health (ACTIVE/STALLED/WAITING/INCOMPLETE).",
+        "input_schema": {"type": "object", "properties": {}}
+    },
+    {
+        "name": "run_category_health",
+        "description": "Weekly review step 5: Analyze task distribution, identify overloaded/neglected areas.",
+        "input_schema": {"type": "object", "properties": {}}
+    },
+    {
+        "name": "run_someday_maybe_review",
+        "description": "Weekly review step 6: Triage backburner items (delete, review, or keep).",
+        "input_schema": {"type": "object", "properties": {}}
+    },
     # Git push/pull
     {
         "name": "git_push",
@@ -1414,6 +1466,13 @@ TOOL_FUNCTIONS = {
     "query_gcal": query_gcal,
     "run_morning_planning": run_morning_planning,
     "run_weekly_review": run_weekly_review,
+    "weekly_review_conductor": lambda action: weekly_review_conductor(action),
+    "run_calendar_review": lambda: run_calendar_review(),
+    "run_deadline_scan": lambda: run_deadline_scan(),
+    "run_waiting_for_review": lambda: run_waiting_for_review(),
+    "run_project_review": lambda: run_project_review(),
+    "run_category_health": lambda: run_category_health(),
+    "run_someday_maybe_review": lambda: run_someday_maybe_review(),
     "restart_self": restart_self,
     "bd_ready": bd_ready,
     "bd_show": bd_show,
