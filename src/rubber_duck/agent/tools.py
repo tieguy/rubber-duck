@@ -748,6 +748,35 @@ def set_project_metadata(
     )
 
 
+def get_project_metadata(project_name: str) -> str:
+    """Get metadata for a Todoist project or category.
+
+    Args:
+        project_name: Exact Todoist project name
+
+    Returns:
+        Formatted metadata or message if not found
+    """
+    meta = get_project_meta(project_name)
+    if not meta:
+        return f"No metadata found for '{project_name}'."
+
+    lines = [f"**{project_name}** ({meta.get('type', 'unknown')})"]
+
+    if goal := meta.get("goal"):
+        lines.append(f"**Goal:** {goal}")
+    if due := meta.get("due"):
+        lines.append(f"**Due:** {due}")
+    if context := meta.get("context"):
+        lines.append(f"**Context:** {context}")
+    if links := meta.get("links"):
+        lines.append("**Links:**")
+        for link in links:
+            lines.append(f"  - {link}")
+
+    return "\n".join(lines)
+
+
 # =============================================================================
 # Google Calendar Operations
 # =============================================================================
@@ -1337,6 +1366,20 @@ TOOL_SCHEMAS = [
         },
     },
     {
+        "name": "get_project_metadata",
+        "description": "Get stored metadata for a Todoist project or category. Returns goal, context, due date, and links.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "project_name": {
+                    "type": "string",
+                    "description": "Exact Todoist project name",
+                },
+            },
+            "required": ["project_name"],
+        },
+    },
+    {
         "name": "query_gcal",
         "description": "Query Google Calendar events for upcoming days.",
         "input_schema": {
@@ -1535,6 +1578,7 @@ TOOL_FUNCTIONS = {
     "create_todoist_project": create_todoist_project,
     "move_todoist_task": move_todoist_task,
     "set_project_metadata": set_project_metadata,
+    "get_project_metadata": get_project_metadata,
     "query_gcal": query_gcal,
     "run_morning_planning": run_morning_planning,
     "run_weekly_review": run_weekly_review,
