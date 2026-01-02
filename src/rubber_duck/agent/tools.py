@@ -22,6 +22,10 @@ from rubber_duck.integrations.tools.waiting_for_review import run_waiting_for_re
 from rubber_duck.integrations.tools.project_review import run_project_review
 from rubber_duck.integrations.tools.category_health import run_category_health
 from rubber_duck.integrations.tools.someday_maybe_review import run_someday_maybe_review
+from rubber_duck.integrations.project_metadata import (
+    get_project_meta,
+    set_project_metadata as _set_project_metadata,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -713,6 +717,37 @@ def move_todoist_task(task_id: str, project_id: str) -> str:
     return f"Error: Failed to move task {task_id} (check logs)"
 
 
+def set_project_metadata(
+    project_name: str,
+    project_type: str,
+    goal: str | None = None,
+    context: str | None = None,
+    due: str | None = None,
+    links: list[str] | None = None,
+) -> str:
+    """Set metadata for a Todoist project or category.
+
+    Args:
+        project_name: Exact Todoist project name
+        project_type: "project" or "category"
+        goal: Definition of done (projects only)
+        context: Background info
+        due: Deadline as ISO date
+        links: Reference URLs or file paths
+
+    Returns:
+        Confirmation message
+    """
+    return _set_project_metadata(
+        project_name=project_name,
+        project_type=project_type,
+        goal=goal,
+        context=context,
+        due=due,
+        links=links,
+    )
+
+
 # =============================================================================
 # Google Calendar Operations
 # =============================================================================
@@ -1266,6 +1301,42 @@ TOOL_SCHEMAS = [
         },
     },
     {
+        "name": "set_project_metadata",
+        "description": "Set metadata for a Todoist project or category. Use to store goals, context, due dates, and links that Todoist cannot hold.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "project_name": {
+                    "type": "string",
+                    "description": "Exact Todoist project name",
+                },
+                "project_type": {
+                    "type": "string",
+                    "enum": ["project", "category"],
+                    "description": "project (has goal/end state) or category (ongoing, no end state)",
+                },
+                "goal": {
+                    "type": "string",
+                    "description": "Definition of done (for projects)",
+                },
+                "context": {
+                    "type": "string",
+                    "description": "Background, constraints, stakeholders",
+                },
+                "due": {
+                    "type": "string",
+                    "description": "Deadline as ISO date, e.g. '2026-06-01'",
+                },
+                "links": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Reference URLs or file paths",
+                },
+            },
+            "required": ["project_name", "project_type"],
+        },
+    },
+    {
         "name": "query_gcal",
         "description": "Query Google Calendar events for upcoming days.",
         "input_schema": {
@@ -1463,6 +1534,7 @@ TOOL_FUNCTIONS = {
     "update_todoist_task": update_todoist_task,
     "create_todoist_project": create_todoist_project,
     "move_todoist_task": move_todoist_task,
+    "set_project_metadata": set_project_metadata,
     "query_gcal": query_gcal,
     "run_morning_planning": run_morning_planning,
     "run_weekly_review": run_weekly_review,
