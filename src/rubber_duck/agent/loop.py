@@ -181,7 +181,10 @@ def _log_to_journal(event_type: str, data: dict) -> None:
 
 def _build_system_prompt(memory_blocks: dict) -> str:
     """Build system prompt from Letta memory blocks."""
-    return f"""You are Rubber Duck, a helpful executive assistant for your owner.
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M %Z")
+    return f"""Current time: {current_time}
+
+You are Rubber Duck, a helpful executive assistant for your owner.
 
 ## Core Identity
 {memory_blocks.get('bot_values', 'A friendly, competent assistant.')}
