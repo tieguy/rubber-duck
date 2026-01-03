@@ -16,7 +16,11 @@ from rubber_duck.agent.claude_code import (
     run_claude_code,
     save_session,
 )
-from rubber_duck.agent.loop import AgentCallbacks, run_agent_loop_interactive
+from rubber_duck.agent.loop import (
+    AgentCallbacks,
+    _log_to_journal,
+    run_agent_loop_interactive,
+)
 
 # Feature flag to use Claude Code subprocess instead of direct SDK
 USE_CLAUDE_CODE = os.environ.get("USE_CLAUDE_CODE", "").lower() in ("1", "true", "yes")
@@ -226,6 +230,8 @@ async def handle_message_claude_code(bot, message: discord.Message) -> None:
     if not content:
         return
 
+    _log_to_journal("user_message", {"content": content})
+
     channel_id = message.channel.id
 
     # Check for active session
@@ -279,6 +285,8 @@ async def handle_message_claude_code(bot, message: discord.Message) -> None:
             session_id=session_id,
             callbacks=callbacks,
         )
+
+        _log_to_journal("assistant_message", {"content": response})
 
         # Save session for potential follow-up
         if new_session_id:
