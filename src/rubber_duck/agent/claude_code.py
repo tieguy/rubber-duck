@@ -161,7 +161,14 @@ async def stream_claude_code(
     if current_tool and callbacks and callbacks.on_tool_end:
         await callbacks.on_tool_end(current_tool, True)
 
-    await process.wait()
+    # Read any stderr output
+    stderr_output = await process.stderr.read()
+    if stderr_output:
+        logger.warning(f"Claude Code stderr: {stderr_output.decode('utf-8')}")
+
+    exit_code = await process.wait()
+    if exit_code != 0:
+        logger.warning(f"Claude Code exited with code {exit_code}")
 
 
 async def run_claude_code(
@@ -201,7 +208,8 @@ def load_session(channel_id: int) -> str | None:
     try:
         data = json.loads(SESSION_FILE.read_text())
         return data.get(str(channel_id))
-    except Exception:
+    except Exception as e:
+        logger.debug(f"Could not load session: {e}")
         return None
 
 
@@ -212,7 +220,7 @@ def save_session(channel_id: int, session_id: str) -> None:
     if SESSION_FILE.exists():
         try:
             data = json.loads(SESSION_FILE.read_text())
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"Could not load session: {e}")
     data[str(channel_id)] = session_id
     SESSION_FILE.write_text(json.dumps(data, indent=2))
