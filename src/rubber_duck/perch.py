@@ -6,12 +6,13 @@
 import json
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from anthropic import AsyncAnthropic
 
 from rubber_duck.agent.tools import archive_to_memory
+from rubber_duck.preemption import finish_work, should_yield, start_work
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +46,7 @@ def _load_perch_state() -> dict:
         try:
             with open(PERCH_STATE_PATH) as f:
                 return json.load(f)
-        except (json.JSONDecodeError, IOError):
+        except (OSError, json.JSONDecodeError):
             pass
     return {}
 
@@ -85,7 +86,7 @@ def _get_journal_entries_since(since_ts: str | None) -> list[dict]:
                     entries.append(entry)
                 except (json.JSONDecodeError, KeyError):
                     continue
-    except IOError as e:
+    except OSError as e:
         logger.warning(f"Could not read journal: {e}")
 
     return entries
@@ -105,7 +106,7 @@ def _get_last_activity_ts() -> datetime | None:
                     last_ts = entry.get("ts")
                 except json.JSONDecodeError:
                     continue
-    except IOError:
+    except OSError:
         pass
 
     return datetime.fromisoformat(last_ts) if last_ts else None
@@ -172,7 +173,7 @@ async def perch_tick(bot) -> None:
 
     Currently only does conversation archiving.
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     state = _load_perch_state()
 
     # Check last activity
@@ -214,31 +215,47 @@ async def perch_tick(bot) -> None:
         _save_perch_state(state)
         return
 
-    # Summarize and evaluate
-    summary = await _summarize_and_evaluate(entries)
+    # Start autonomous work
+    start_work("archiving conversation")
+    try:
+        # Check for preemption before doing work
+        if should_yield():
+            await _send_debug_dm(bot, "🪺 Perch tick\n• Preempted before archiving")
+            return
 
-    if summary is None:
-        await _send_debug_dm(
-            bot,
-            f"🪺 Perch tick\n"
-            f"• Last activity: {int(gap_minutes)} min ago\n"
-            f"• Entries since last archive: {len(entries)}\n"
-            f"• Action: Skipped - trivial conversation"
-        )
-    else:
-        # Archive the summary
-        result = archive_to_memory(summary)
-        logger.info(f"Archived conversation summary: {result}")
+        # Summarize and evaluate
+        summary = await _summarize_and_evaluate(entries)
 
-        await _send_debug_dm(
-            bot,
-            f"🪺 Perch tick\n"
-            f"• Last activity: {int(gap_minutes)} min ago\n"
-            f"• Entries since last archive: {len(entries)}\n"
-            f"• Action: Archived conversation summary"
-        )
+        # Check again after async work
+        if should_yield():
+            await _send_debug_dm(bot, "🪺 Perch tick\n• Preempted after summarization")
+            return
 
-    # Update state
-    state["last_archive_ts"] = now.isoformat()
-    state["last_tick_ts"] = now.isoformat()
-    _save_perch_state(state)
+        if summary is None:
+            await _send_debug_dm(
+                bot,
+                f"🪺 Perch tick\n"
+                f"• Last activity: {int(gap_minutes)} min ago\n"
+                f"• Entries since last archive: {len(entries)}\n"
+                f"• Action: Skipped - trivial conversation"
+            )
+        else:
+            # Archive the summary
+            result = archive_to_memory(summary)
+            logger.info(f"Archived conversation summary: {result}")
+
+            await _send_debug_dm(
+                bot,
+                f"🪺 Perch tick\n"
+                f"• Last activity: {int(gap_minutes)} min ago\n"
+                f"• Entries since last archive: {len(entries)}\n"
+                f"• Action: Archived conversation summary"
+            )
+
+        # Update state
+        state["last_archive_ts"] = now.isoformat()
+        state["last_tick_ts"] = now.isoformat()
+        _save_perch_state(state)
+
+    finally:
+        finish_work()
