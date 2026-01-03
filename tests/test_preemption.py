@@ -71,3 +71,27 @@ def test_clear_preempt_resets_flag():
     clear_preempt()
     assert should_yield() is False
     assert get_state().preempt_reason is None
+
+
+def test_check_stuck_resets_after_10_minutes():
+    """Stuck detection resets state after 10 minutes."""
+    from rubber_duck.preemption import _state
+
+    start_work("long task")
+    # Simulate 11 minutes ago
+    _state.started_at = datetime.now(timezone.utc) - timedelta(minutes=11)
+
+    assert check_stuck() is True
+    assert get_state().status == BotStatus.IDLE
+
+
+def test_check_stuck_false_when_recent():
+    """Stuck detection returns False for recent work."""
+    start_work("recent task")
+    assert check_stuck() is False
+    assert get_state().status == BotStatus.WORKING
+
+
+def test_check_stuck_false_when_idle():
+    """Stuck detection returns False when idle."""
+    assert check_stuck() is False
