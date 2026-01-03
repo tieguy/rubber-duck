@@ -5,11 +5,14 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies, bd CLI, and uv
+# Install system dependencies, Node.js, bd CLI, Claude Code CLI, and uv
 RUN apt-get update && \
     apt-get install -y git curl && \
+    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y nodejs && \
     rm -rf /var/lib/apt/lists/* && \
     curl -sSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash && \
+    npm install -g @anthropic-ai/claude-code && \
     pip install uv
 
 # Copy entrypoint and dependency files (for initial uv cache)

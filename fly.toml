@@ -37,3 +37,8 @@ primary_region = "lax"
 [[mounts]]
   source = "rubber_duck_state"
   destination = "/app/state"
+
+# Claude Code credentials (OAuth tokens)
+[[mounts]]
+  source = "claude_credentials"
+  destination = "/root/.claude"
