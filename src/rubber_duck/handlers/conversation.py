@@ -23,7 +23,8 @@ from rubber_duck.agent.loop import (
 )
 
 # Feature flag to use Claude Code subprocess instead of direct SDK
-USE_CLAUDE_CODE = os.environ.get("USE_CLAUDE_CODE", "").lower() in ("1", "true", "yes")
+# Defaults to True - set USE_CLAUDE_CODE=false to use Anthropic SDK instead
+USE_CLAUDE_CODE = os.environ.get("USE_CLAUDE_CODE", "true").lower() not in ("0", "false", "no")
 
 logger = logging.getLogger(__name__)
 
