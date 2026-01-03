@@ -9,10 +9,10 @@ Runs Claude Code CLI and parses streaming NDJSON output.
 import asyncio
 import json
 import logging
+from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import AsyncIterator, Callable, Awaitable
 
 logger = logging.getLogger(__name__)
 
@@ -113,6 +113,7 @@ async def stream_claude_code(
     cmd = [
         "claude",
         "-p", prompt,
+        "--verbose",
         "--output-format", "stream-json",
         "--allowedTools", "Bash,Read,Write,Edit,Glob,Grep,WebFetch,WebSearch",
     ]
