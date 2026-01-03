@@ -10,6 +10,7 @@ import asyncio
 import json
 import logging
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 from typing import AsyncIterator, Callable, Awaitable
 
@@ -224,3 +225,36 @@ def save_session(channel_id: int, session_id: str) -> None:
             logger.debug(f"Could not load session: {e}")
     data[str(channel_id)] = session_id
     SESSION_FILE.write_text(json.dumps(data, indent=2))
+
+
+def build_system_prompt(memory_blocks: dict) -> str:
+    """Build system prompt from Letta memory blocks.
+
+    This is appended to Claude Code's default system prompt.
+    """
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M %Z")
+
+    return f"""Current time: {current_time}
+
+## About the Owner
+{memory_blocks.get('persona', 'Learning about them.')}
+
+## Observed Patterns
+{memory_blocks.get('patterns', 'Still observing.')}
+
+## Current Focus
+{memory_blocks.get('current_focus', 'No specific focus set.')}
+
+## Communication Style
+{memory_blocks.get('communication', 'Be concise and actionable.')}
+
+## Guidelines
+{memory_blocks.get('guidelines', 'Help stay organized using GTD principles.')}
+
+## Available Tools
+You have skills for Todoist tasks, Google Calendar, and memory operations.
+Use them when the user asks about tasks, schedule, or wants to remember something.
+
+For task operations, prefer the todoist skill over direct file manipulation.
+For past context, use the memory skill to search archival memory.
+"""

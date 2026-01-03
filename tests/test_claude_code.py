@@ -39,3 +39,18 @@ def test_parse_invalid_json():
     """Invalid JSON returns None."""
     event = parse_ndjson_line("not json")
     assert event is None
+
+
+def test_build_system_prompt_includes_blocks():
+    """System prompt includes memory block content."""
+    from rubber_duck.agent.claude_code import build_system_prompt
+
+    blocks = {
+        "persona": "Test owner info",
+        "patterns": "Test patterns",
+    }
+    prompt = build_system_prompt(blocks)
+
+    assert "Test owner info" in prompt
+    assert "Test patterns" in prompt
+    assert "Current time:" in prompt
