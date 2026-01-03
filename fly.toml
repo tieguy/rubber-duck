@@ -33,12 +33,7 @@ primary_region = "lax"
   policy = "always"
   retries = 5
 
-# Persistent storage for state (journal, insights, etc.)
+# Persistent storage for state (journal, insights, Claude credentials)
 [[mounts]]
   source = "rubber_duck_state"
   destination = "/app/state"
-
-# Claude Code credentials (OAuth tokens)
-[[mounts]]
-  source = "claude_credentials"
-  destination = "/root/.claude"

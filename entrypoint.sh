@@ -43,6 +43,18 @@ echo "Linking persistent state..."
 rm -rf "$REPO_DIR/state" 2>/dev/null || true
 ln -s /app/state "$REPO_DIR/state"
 
+# Link Claude credentials from state volume to expected location
+# Credentials stored in /app/state/.claude, symlinked to /root/.claude
+if [[ -d "/app/state/.claude" ]]; then
+    echo "Linking Claude credentials..."
+    rm -rf /root/.claude 2>/dev/null || true
+    ln -s /app/state/.claude /root/.claude
+else
+    echo "No Claude credentials found in /app/state/.claude"
+    echo "To set up: fly ssh console, then mkdir -p /app/state/.claude"
+    echo "Then: fly sftp shell, put ~/.claude/.credentials.json /app/state/.claude/"
+fi
+
 # Install/update dependencies
 echo "Installing dependencies..."
 uv sync --frozen
