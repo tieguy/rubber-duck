@@ -5,10 +5,21 @@
 
 import asyncio
 import logging
+import os
 
 import discord
 
+from rubber_duck.agent.claude_code import (
+    ClaudeCodeCallbacks,
+    build_system_prompt,
+    load_session,
+    run_claude_code,
+    save_session,
+)
 from rubber_duck.agent.loop import AgentCallbacks, run_agent_loop_interactive
+
+# Feature flag to use Claude Code subprocess instead of direct SDK
+USE_CLAUDE_CODE = os.environ.get("USE_CLAUDE_CODE", "").lower() in ("1", "true", "yes")
 
 logger = logging.getLogger(__name__)
 
@@ -126,7 +137,7 @@ class InteractiveSession:
                 await self.status_msg.edit(content="\n".join(self.tool_log))
                 return True
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.info("Checkpoint timed out")
             return False
 
@@ -148,8 +159,11 @@ class InteractiveSession:
         )
 
 
-async def handle_message(bot, message: discord.Message) -> None:
-    """Handle an incoming message from the owner.
+async def handle_message_sdk(bot, message: discord.Message) -> None:
+    """Handle an incoming message using direct Anthropic SDK.
+
+    This is the original handler that uses the agent loop with direct
+    Anthropic SDK calls.
 
     Args:
         bot: The Discord bot instance
@@ -196,3 +210,95 @@ async def handle_message(bot, message: discord.Message) -> None:
     except Exception as e:
         logger.exception(f"Error handling message: {e}")
         await message.reply("Sorry, something went wrong processing your message.")
+
+
+async def handle_message_claude_code(bot, message: discord.Message) -> None:
+    """Handle message using Claude Code subprocess.
+
+    This is the new handler that uses Claude Code CLI instead of
+    direct Anthropic SDK calls.
+
+    Args:
+        bot: The Discord bot instance
+        message: The Discord message to handle
+    """
+    content = message.content.strip()
+    if not content:
+        return
+
+    channel_id = message.channel.id
+
+    # Check for active session
+    if channel_id in _active_sessions:
+        logger.info(f"Message during active session: {content[:50]}")
+        return
+
+    logger.info(f"Handling message via Claude Code: {content[:50]}...")
+
+    try:
+        status_msg = await message.reply("🤔 Starting...")
+
+        # Load memory blocks for system prompt
+        from rubber_duck.agent.loop import _get_memory_blocks
+
+        memory_blocks = _get_memory_blocks()
+        system_prompt = build_system_prompt(memory_blocks)
+
+        # Check for existing session (for follow-ups)
+        session_id = load_session(channel_id)
+
+        # Track tool progress
+        tool_log: list[str] = []
+
+        async def on_tool_start(name: str) -> None:
+            tool_log.append(f"🔧 {name} ...")
+            try:
+                await status_msg.edit(content="\n".join(tool_log))
+            except discord.HTTPException:
+                pass
+
+        async def on_tool_end(name: str, success: bool) -> None:
+            symbol = "✓" if success else "✗"
+            for i in range(len(tool_log) - 1, -1, -1):
+                if name in tool_log[i]:
+                    tool_log[i] = f"🔧 {name} {symbol}"
+                    break
+            try:
+                await status_msg.edit(content="\n".join(tool_log))
+            except discord.HTTPException:
+                pass
+
+        callbacks = ClaudeCodeCallbacks(
+            on_tool_start=on_tool_start,
+            on_tool_end=on_tool_end,
+        )
+
+        response, new_session_id = await run_claude_code(
+            prompt=content,
+            system_prompt=system_prompt,
+            session_id=session_id,
+            callbacks=callbacks,
+        )
+
+        # Save session for potential follow-up
+        if new_session_id:
+            save_session(channel_id, new_session_id)
+
+        await status_msg.edit(content=response)
+
+    except Exception as e:
+        logger.exception(f"Error handling message: {e}")
+        await message.reply("Sorry, something went wrong.")
+
+
+async def handle_message(bot, message: discord.Message) -> None:
+    """Route to appropriate handler based on feature flag.
+
+    Args:
+        bot: The Discord bot instance
+        message: The Discord message to handle
+    """
+    if USE_CLAUDE_CODE:
+        await handle_message_claude_code(bot, message)
+    else:
+        await handle_message_sdk(bot, message)
