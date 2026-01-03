@@ -3,6 +3,7 @@
 
 """Discord bot client for Rubber Duck."""
 
+import asyncio
 import logging
 import os
 
@@ -10,6 +11,13 @@ import discord
 from discord.ext import commands
 
 from rubber_duck.handlers.conversation import handle_message
+from rubber_duck.preemption import (
+    BotStatus,
+    check_stuck,
+    clear_preempt,
+    get_state,
+    request_preempt,
+)
 from rubber_duck.scheduler import setup_scheduler
 
 logger = logging.getLogger(__name__)
@@ -46,6 +54,26 @@ class RubberDuck(commands.Bot):
         # Only respond to DMs from the owner
         if isinstance(message.channel, discord.DMChannel):
             if message.author.id == self.owner_id:
+                state = get_state()
+
+                # Check for stuck state first
+                check_stuck()
+
+                if state.status == BotStatus.WORKING:
+                    # Acknowledge immediately
+                    await message.channel.send(
+                        "One moment, I'm finishing something up..."
+                    )
+                    request_preempt(f"User message: {message.content[:50]}")
+
+                    # Poll for idle (up to 60 seconds)
+                    for _ in range(30):
+                        await asyncio.sleep(2)
+                        if get_state().status == BotStatus.IDLE:
+                            break
+
+                    clear_preempt()
+
                 await handle_message(self, message)
             else:
                 logger.warning(f"Ignoring DM from non-owner: {message.author.id}")
