@@ -39,18 +39,20 @@ def output_success(data: dict | list | None = None) -> None:
 # =============================================================================
 
 
-def todoist_query(args: argparse.Namespace) -> None:
+def todoist_query(args: argparse.Namespace) -> bool:
     """Query Todoist tasks by filter."""
     from rubber_duck.integrations import todoist
 
     try:
         tasks = asyncio.run(todoist.get_tasks_by_filter(args.filter))
         output_success(tasks)
+        return True
     except Exception as e:
         output_error(f"Failed to query Todoist: {e}")
+        return False
 
 
-def todoist_create(args: argparse.Namespace) -> None:
+def todoist_create(args: argparse.Namespace) -> bool:
     """Create a Todoist task."""
     from rubber_duck.integrations import todoist
 
@@ -67,13 +69,16 @@ def todoist_create(args: argparse.Namespace) -> None:
         )
         if task:
             output_success(task)
+            return True
         else:
             output_error("Failed to create task (no API key or error)")
+            return False
     except Exception as e:
         output_error(f"Failed to create task: {e}")
+        return False
 
 
-def todoist_complete(args: argparse.Namespace) -> None:
+def todoist_complete(args: argparse.Namespace) -> bool:
     """Complete a Todoist task."""
     from rubber_duck.integrations import todoist
 
@@ -81,21 +86,26 @@ def todoist_complete(args: argparse.Namespace) -> None:
         success = asyncio.run(todoist.complete_task(args.task_id))
         if success:
             output_success({"task_id": args.task_id, "completed": True})
+            return True
         else:
             output_error("Failed to complete task (no API key or error)")
+            return False
     except Exception as e:
         output_error(f"Failed to complete task: {e}")
+        return False
 
 
-def todoist_projects(args: argparse.Namespace) -> None:
+def todoist_projects(args: argparse.Namespace) -> bool:
     """List Todoist projects."""
     from rubber_duck.integrations import todoist
 
     try:
         projects = asyncio.run(todoist.list_projects())
         output_success(projects)
+        return True
     except Exception as e:
         output_error(f"Failed to list projects: {e}")
+        return False
 
 
 # =============================================================================
@@ -103,7 +113,7 @@ def todoist_projects(args: argparse.Namespace) -> None:
 # =============================================================================
 
 
-def memory_get_blocks(args: argparse.Namespace) -> None:
+def memory_get_blocks(args: argparse.Namespace) -> bool:
     """Get all memory blocks from Letta."""
     from rubber_duck.integrations import memory
 
@@ -111,12 +121,12 @@ def memory_get_blocks(args: argparse.Namespace) -> None:
         client = memory.get_client()
         if not client:
             output_error("Letta client not configured (LETTA_API_KEY not set)")
-            return
+            return False
 
         agent_id = asyncio.run(memory.get_or_create_agent())
         if not agent_id:
             output_error("Failed to get or create agent")
-            return
+            return False
 
         blocks = client.agents.blocks.list(agent_id=agent_id)
         block_data = [
@@ -128,11 +138,13 @@ def memory_get_blocks(args: argparse.Namespace) -> None:
             for b in blocks
         ]
         output_success(block_data)
+        return True
     except Exception as e:
         output_error(f"Failed to get memory blocks: {e}")
+        return False
 
 
-def memory_set_block(args: argparse.Namespace) -> None:
+def memory_set_block(args: argparse.Namespace) -> bool:
     """Set a memory block value in Letta."""
     from rubber_duck.integrations import memory
 
@@ -140,12 +152,12 @@ def memory_set_block(args: argparse.Namespace) -> None:
         client = memory.get_client()
         if not client:
             output_error("Letta client not configured (LETTA_API_KEY not set)")
-            return
+            return False
 
         agent_id = asyncio.run(memory.get_or_create_agent())
         if not agent_id:
             output_error("Failed to get or create agent")
-            return
+            return False
 
         # Find the block by label
         blocks = client.agents.blocks.list(agent_id=agent_id)
@@ -157,16 +169,18 @@ def memory_set_block(args: argparse.Namespace) -> None:
 
         if not block_id:
             output_error(f"Block with label '{args.label}' not found")
-            return
+            return False
 
         # Update the block
         client.agents.blocks.update(block_id=block_id, value=args.value)
         output_success({"label": args.label, "updated": True})
+        return True
     except Exception as e:
         output_error(f"Failed to set memory block: {e}")
+        return False
 
 
-def memory_search(args: argparse.Namespace) -> None:
+def memory_search(args: argparse.Namespace) -> bool:
     """Search archival memory in Letta."""
     from rubber_duck.integrations import memory
 
@@ -174,12 +188,12 @@ def memory_search(args: argparse.Namespace) -> None:
         client = memory.get_client()
         if not client:
             output_error("Letta client not configured (LETTA_API_KEY not set)")
-            return
+            return False
 
         agent_id = asyncio.run(memory.get_or_create_agent())
         if not agent_id:
             output_error("Failed to get or create agent")
-            return
+            return False
 
         results = client.agents.archival_memory.search(
             agent_id=agent_id,
@@ -195,11 +209,13 @@ def memory_search(args: argparse.Namespace) -> None:
             for r in results
         ]
         output_success(memory_data)
+        return True
     except Exception as e:
         output_error(f"Failed to search memory: {e}")
+        return False
 
 
-def memory_archive(args: argparse.Namespace) -> None:
+def memory_archive(args: argparse.Namespace) -> bool:
     """Archive text to Letta archival memory."""
     from rubber_duck.integrations import memory
 
@@ -207,20 +223,22 @@ def memory_archive(args: argparse.Namespace) -> None:
         client = memory.get_client()
         if not client:
             output_error("Letta client not configured (LETTA_API_KEY not set)")
-            return
+            return False
 
         agent_id = asyncio.run(memory.get_or_create_agent())
         if not agent_id:
             output_error("Failed to get or create agent")
-            return
+            return False
 
         result = client.agents.archival_memory.insert(
             agent_id=agent_id,
             text=args.text,
         )
         output_success({"archived": True, "id": result.id if hasattr(result, "id") else None})
+        return True
     except Exception as e:
         output_error(f"Failed to archive to memory: {e}")
+        return False
 
 
 # =============================================================================
@@ -228,7 +246,7 @@ def memory_archive(args: argparse.Namespace) -> None:
 # =============================================================================
 
 
-def gcal_query(args: argparse.Namespace) -> None:
+def gcal_query(args: argparse.Namespace) -> bool:
     """Query Google Calendar events."""
     from rubber_duck.integrations import gcal
 
@@ -260,8 +278,10 @@ def gcal_query(args: argparse.Namespace) -> None:
             )
         )
         output_success(events)
+        return True
     except Exception as e:
         output_error(f"Failed to query calendar: {e}")
+        return False
 
 
 # =============================================================================
@@ -371,7 +391,9 @@ def main() -> None:
     args = parser.parse_args()
 
     if hasattr(args, "func"):
-        args.func(args)
+        success = args.func(args)
+        if not success:
+            sys.exit(1)
     else:
         parser.print_help()
         sys.exit(1)
