@@ -717,6 +717,25 @@ def move_todoist_task(task_id: str, project_id: str) -> str:
     return f"Error: Failed to move task {task_id} (check logs)"
 
 
+def rename_todoist_project(project_id: str, name: str) -> str:
+    """Rename a Todoist project.
+
+    Args:
+        project_id: Project ID to rename
+        name: New project name
+
+    Returns:
+        Success or error message
+    """
+    from rubber_duck.integrations.todoist import rename_project
+
+    success = run_async(rename_project(project_id, name))
+
+    if success:
+        return f"Renamed project {project_id} to '{name}'"
+    return f"Error: Failed to rename project {project_id} (check logs)"
+
+
 def set_project_metadata(
     project_name: str,
     project_type: str,
@@ -1330,6 +1349,24 @@ TOOL_SCHEMAS = [
         },
     },
     {
+        "name": "rename_todoist_project",
+        "description": "Rename a Todoist project.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "project_id": {
+                    "type": "string",
+                    "description": "Project ID to rename",
+                },
+                "name": {
+                    "type": "string",
+                    "description": "New project name",
+                },
+            },
+            "required": ["project_id", "name"],
+        },
+    },
+    {
         "name": "set_project_metadata",
         "description": "Set metadata for a Todoist project or category. Use to store goals, context, due dates, and links that Todoist cannot hold.",
         "input_schema": {
@@ -1577,6 +1614,7 @@ TOOL_FUNCTIONS = {
     "update_todoist_task": update_todoist_task,
     "create_todoist_project": create_todoist_project,
     "move_todoist_task": move_todoist_task,
+    "rename_todoist_project": rename_todoist_project,
     "set_project_metadata": set_project_metadata,
     "get_project_metadata": get_project_metadata,
     "query_gcal": query_gcal,

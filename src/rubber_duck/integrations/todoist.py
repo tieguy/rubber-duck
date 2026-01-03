@@ -348,6 +348,32 @@ async def create_project(
         return None
 
 
+async def rename_project(project_id: str, name: str) -> bool:
+    """Rename a Todoist project.
+
+    Args:
+        project_id: Project ID to rename
+        name: New project name
+
+    Returns:
+        True if successful, False otherwise
+    """
+    client = get_client()
+    if not client:
+        return False
+
+    try:
+        # Use retry wrapper for rate limit handling
+        await _retry_with_backoff(
+            lambda: client.update_project(project_id=project_id, name=name),
+            "rename_project",
+        )
+        return True
+    except Exception as e:
+        logger.exception(f"Error renaming Todoist project: {e}")
+        return False
+
+
 async def move_task(task_id: str, project_id: str) -> bool:
     """Move a task to a different project using Todoist Sync API.
 
