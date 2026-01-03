@@ -18,7 +18,7 @@ primary_region = "lax"
 
 [[vm]]
   size = "shared-cpu-1x"
-  memory = "256mb"
+  memory = "512mb"
 
 # Only run one instance (Discord bot can't have multiple)
 [deploy]
