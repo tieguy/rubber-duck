@@ -258,4 +258,8 @@ Use them when the user asks about tasks, schedule, or wants to remember somethin
 
 For task operations, prefer the todoist skill over direct file manipulation.
 For past context, use the memory skill to search archival memory.
+
+## Journal
+Conversation history is in state/journal.jsonl (JSONL format, one entry per line).
+Use Grep to search for past conversations, decisions, or context.
 """
