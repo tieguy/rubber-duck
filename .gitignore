@@ -5,10 +5,15 @@
 .env
 dev-the-duck.sh
 .worktrees/
-.beads/
+# .beads/ runtime files (db itself is tracked)
+.beads/*.sock
+.beads/daemon.*
+.beads/beads.db-shm
+.beads/beads.db-wal
 
 # Marvin exports (contain personal data)
 *.jsonl
+!.beads/issues.jsonl
 category_hierarchy.json
 
 # Private docs (contain personal info)
