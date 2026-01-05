@@ -12,7 +12,7 @@ Key components:
 - **Letta Cloud** for persistent memory blocks only (no LLM calls)
 - **Todoist** for task management (via local tools)
 - **APScheduler** for scheduled nudges
-- **Fly.io** for deployment (planned)
+- **Fly.io** for deployment
 
 Architecture follows Strix's three-tier memory pattern - see `docs/plans/2025-12-31-strix-architecture-design.md`.
 
