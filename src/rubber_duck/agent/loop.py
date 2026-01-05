@@ -83,9 +83,18 @@ RECENT_CONTEXT_LIMIT = 3  # Number of recent exchanges to inject as context
 
 
 def _parse_journal_entry(line: str) -> dict | None:
-    """Parse a single journal line into a message dict if valid."""
+    """Parse a single journal line into a message dict if valid.
+
+    Filters out entries from "perch" source to avoid polluting recent context
+    with autonomous maintenance activity.
+    """
     try:
         entry = json.loads(line.strip())
+
+        # Skip perch entries - they're autonomous maintenance, not conversation
+        if entry.get("source") == "perch":
+            return None
+
         entry_type = entry.get("type")
         content = entry.get("content", "")
 
@@ -163,8 +172,14 @@ def _get_recent_context() -> list[dict]:
         return []
 
 
-def _log_to_journal(event_type: str, data: dict) -> None:
-    """Append event to journal.jsonl."""
+def _log_to_journal(event_type: str, data: dict, source: str = "conversation") -> None:
+    """Append event to journal.jsonl.
+
+    Args:
+        event_type: Type of event (user_message, assistant_message, tool_call, etc.)
+        data: Event data to log
+        source: Source of the entry ("conversation" or "perch") for filtering
+    """
     repo_root = Path(__file__).parent.parent.parent.parent
     journal = repo_root / JOURNAL_PATH
     journal.parent.mkdir(parents=True, exist_ok=True)
@@ -172,6 +187,7 @@ def _log_to_journal(event_type: str, data: dict) -> None:
     entry = {
         "ts": datetime.now(timezone.utc).isoformat(),
         "type": event_type,
+        "source": source,
         **data,
     }
 
