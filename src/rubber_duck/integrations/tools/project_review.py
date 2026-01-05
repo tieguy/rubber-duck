@@ -13,6 +13,7 @@ from rubber_duck.integrations.tools.weekly_utils import (
     group_by_project,
     compute_project_status,
     is_someday_maybe_project,
+    task_url,
     BACKBURNER_LABELS,
     WAITING_LABELS,
 )
@@ -108,7 +109,11 @@ def run_project_review() -> str:
             lines.append("*Decision needed: better next action? defer? abandon?*")
             lines.append("")
             for proj, proj_tasks, _, next_action, meta in by_status["STALLED"][:5]:
-                next_str = f" -> {next_action['content'][:50]}" if next_action else ""
+                if next_action:
+                    link = task_url(next_action['id'])
+                    next_str = f" -> {link} {next_action['content'][:50]}"
+                else:
+                    next_str = ""
                 lines.append(_format_project_line(proj, meta, len(proj_tasks), next_str))
             lines.append("")
 

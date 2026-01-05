@@ -10,6 +10,7 @@ from rubber_duck.integrations.tools.weekly_utils import (
     fetch_todoist_tasks,
     fetch_todoist_projects,
     calculate_task_age_days,
+    task_url,
     WAITING_LABELS,
 )
 
@@ -71,8 +72,8 @@ def run_waiting_for_review() -> str:
                 proj_name = proj_by_id.get(task.get("project_id"), {}).get("name", "Inbox")
                 age_str = f"{age}d" if age else "?"
                 icon = "🔴" if action == "escalate" else "⚠️"
-                lines.append(f"- {icon} **{task['content']}** ({age_str})")
-                lines.append(f"      Project: {proj_name}")
+                link = task_url(task["id"])
+                lines.append(f"- {icon} {link} **{task['content']}** ({age_str}) - {proj_name}")
                 lines.append(f"      Suggested: \"{wording}\"")
                 lines.append("")
 
@@ -82,8 +83,8 @@ def run_waiting_for_review() -> str:
             for task, age, action, wording in gentle_check:
                 proj_name = proj_by_id.get(task.get("project_id"), {}).get("name", "Inbox")
                 age_str = f"{age}d" if age else "?"
-                lines.append(f"- **{task['content']}** ({age_str})")
-                lines.append(f"      Project: {proj_name}")
+                link = task_url(task["id"])
+                lines.append(f"- {link} **{task['content']}** ({age_str}) - {proj_name}")
                 lines.append(f"      Suggested: \"{wording}\"")
                 lines.append("")
 
@@ -93,7 +94,8 @@ def run_waiting_for_review() -> str:
             for task, age, action, wording in still_waiting:
                 proj_name = proj_by_id.get(task.get("project_id"), {}).get("name", "Inbox")
                 age_str = f"{age}d" if age else "new"
-                lines.append(f"- {task['content']} ({age_str}) - {proj_name}")
+                link = task_url(task["id"])
+                lines.append(f"- {link} {task['content']} ({age_str}) - {proj_name}")
             lines.append("")
 
         lines.append("---")

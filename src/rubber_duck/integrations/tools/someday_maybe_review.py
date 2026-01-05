@@ -12,6 +12,7 @@ from rubber_duck.integrations.tools.weekly_utils import (
     fetch_todoist_projects,
     calculate_task_age_days,
     is_someday_maybe_project,
+    task_url,
     BACKBURNER_LABELS,
 )
 
@@ -70,8 +71,8 @@ def run_someday_maybe_review() -> str:
             lines.append("")
             for task, age, _, proj_name in consider_delete[:5]:
                 age_str = f"{age}d" if age else "?"
-                lines.append(f"- [ ] **{task['content']}** ({age_str})")
-                lines.append(f"      Project: {proj_name}")
+                link = task_url(task["id"])
+                lines.append(f"- [ ] {link} **{task['content']}** ({age_str}) - {proj_name}")
             lines.append("")
 
         if needs_review:
@@ -80,8 +81,8 @@ def run_someday_maybe_review() -> str:
             lines.append("")
             for task, age, _, proj_name in needs_review[:5]:
                 age_str = f"{age}d" if age else "?"
-                lines.append(f"- [ ] **{task['content']}** ({age_str})")
-                lines.append(f"      Project: {proj_name}")
+                link = task_url(task["id"])
+                lines.append(f"- [ ] {link} **{task['content']}** ({age_str}) - {proj_name}")
             lines.append("")
 
         if keep:
@@ -90,7 +91,8 @@ def run_someday_maybe_review() -> str:
             lines.append("")
             for task, age, _, proj_name in keep[:10]:
                 age_str = f"{age}d" if age else "new"
-                lines.append(f"- {task['content']} ({age_str}) - {proj_name}")
+                link = task_url(task["id"])
+                lines.append(f"- {link} {task['content']} ({age_str}) - {proj_name}")
             if len(keep) > 10:
                 lines.append(f"- *...and {len(keep) - 10} more*")
             lines.append("")

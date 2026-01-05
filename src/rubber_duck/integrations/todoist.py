@@ -114,6 +114,7 @@ async def get_tasks_by_filter(filter_query: str) -> list[dict]:
                 "due": t.due.string if t.due else None,
                 "labels": t.labels,
                 "project_id": t.project_id,
+                "url": t.url,
             }
             for t in tasks
         ]

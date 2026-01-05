@@ -10,6 +10,7 @@ from rubber_duck.integrations.tools.weekly_utils import (
     fetch_todoist_tasks,
     fetch_todoist_projects,
     calculate_days_until_due,
+    task_url,
 )
 
 
@@ -65,8 +66,8 @@ def run_deadline_scan() -> str:
             lines.append("")
             for task, days in overdue[:10]:
                 proj_name = proj_by_id.get(task.get("project_id"), {}).get("name", "Inbox")
-                lines.append(f"- [ ] **{task['content']}** ({abs(days)}d overdue)")
-                lines.append(f"      Project: {proj_name}")
+                link = task_url(task["id"])
+                lines.append(f"- [ ] {link} **{task['content']}** ({abs(days)}d overdue) - {proj_name}")
             lines.append("")
         else:
             lines.append("### OVERDUE")
@@ -80,8 +81,8 @@ def run_deadline_scan() -> str:
             for task, days in due_this_week[:10]:
                 proj_name = proj_by_id.get(task.get("project_id"), {}).get("name", "Inbox")
                 day_name = (today + timedelta(days=days)).strftime("%A") if days > 0 else "Today"
-                lines.append(f"- [ ] **{task['content']}** (due {day_name})")
-                lines.append(f"      Project: {proj_name}")
+                link = task_url(task["id"])
+                lines.append(f"- [ ] {link} **{task['content']}** (due {day_name}) - {proj_name}")
             lines.append("")
 
         if due_next_week:
@@ -91,8 +92,8 @@ def run_deadline_scan() -> str:
             for task, days in due_next_week[:10]:
                 proj_name = proj_by_id.get(task.get("project_id"), {}).get("name", "Inbox")
                 day_name = (today + timedelta(days=days)).strftime("%A, %b %d")
-                lines.append(f"- [ ] **{task['content']}** (due {day_name})")
-                lines.append(f"      Project: {proj_name}")
+                link = task_url(task["id"])
+                lines.append(f"- [ ] {link} **{task['content']}** (due {day_name}) - {proj_name}")
             lines.append("")
 
         # Summary

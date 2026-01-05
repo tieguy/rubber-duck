@@ -14,6 +14,11 @@ WAITING_LABELS = {"waiting", "waiting-for", "waiting for"}
 SOMEDAY_PROJECT_NAMES = {"someday-maybe", "someday maybe", "someday/maybe", "someday"}
 
 
+def task_url(task_id: str) -> str:
+    """Generate Todoist web URL for a task as a clickable markdown link."""
+    return f"[🔗](https://todoist.com/app/task/{task_id})"
+
+
 def get_todoist_api_key() -> str | None:
     """Get Todoist API key from environment."""
     return os.environ.get("TODOIST_API_KEY")

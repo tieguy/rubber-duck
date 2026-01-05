@@ -547,7 +547,8 @@ def query_todoist(filter_query: str) -> str:
             labels = f" [{', '.join(t['labels'])}]" if t.get("labels") else ""
             proj_id = t.get("project_id")
             project = f" (project: {project_map.get(proj_id, proj_id)})" if proj_id else ""
-            lines.append(f"- [ID:{t['id']}] {t['content']}{due}{labels}{project}")
+            link = f"[🔗](https://todoist.com/app/task/{t['id']})"
+            lines.append(f"- {link} {t['content']}{due}{labels}{project}")
 
         if len(tasks) > 20:
             lines.append(f"... and {len(tasks) - 20} more")
@@ -605,7 +606,8 @@ def complete_todoist_task(task_id: str) -> str:
 
     success = run_async(complete_task(task_id))
     if success:
-        return f"Completed task {task_id}"
+        link = f"[🔗](https://todoist.com/app/task/{task_id})"
+        return f"Completed task {link}"
     return f"Error: Failed to complete task {task_id} (check logs)"
 
 
@@ -665,7 +667,8 @@ def update_todoist_task(
     ))
 
     if success:
-        return f"Updated task {task_id}"
+        link = f"[🔗](https://todoist.com/app/task/{task_id})"
+        return f"Updated task {link}"
     return f"Error: Failed to update task {task_id} (check logs)"
 
 
@@ -713,7 +716,8 @@ def move_todoist_task(task_id: str, project_id: str) -> str:
     success = run_async(move_task(task_id, project_id))
 
     if success:
-        return f"Moved task {task_id} to project {project_id}"
+        link = f"[🔗](https://todoist.com/app/task/{task_id})"
+        return f"Moved task {link} to project {project_id}"
     return f"Error: Failed to move task {task_id} (check logs)"
 
 

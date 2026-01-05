@@ -198,7 +198,8 @@ def run_morning_planning() -> str:
         if categories["overdue"]:
             lines.append("### OVERDUE (Address First)")
             for task, days in categories["overdue"][:5]:
-                lines.append(f"- [ID:{task['id']}] {task['content']} ({abs(days)} days overdue)")
+                link = f"[🔗](https://todoist.com/app/task/{task['id']})"
+                lines.append(f"- {link} {task['content']} ({abs(days)} days overdue)")
             lines.append("")
 
         # TOP 3 priorities
@@ -209,7 +210,8 @@ def run_morning_planning() -> str:
             for i, task in enumerate(top_3, 1):
                 due = task.get("due", {})
                 due_info = f" (due: {due.get('string', due.get('date', ''))})" if due else ""
-                lines.append(f"{i}. [ID:{task['id']}] {task['content']}{due_info}")
+                link = f"[🔗](https://todoist.com/app/task/{task['id']})"
+                lines.append(f"{i}. {link} {task['content']}{due_info}")
         else:
             lines.append("*No urgent tasks - consider strategic work or clearing backlog*")
         lines.append("")
@@ -220,7 +222,8 @@ def run_morning_planning() -> str:
             lines.append("### Scheduled for Today")
             for task in scheduled:
                 time_str = _format_task_time(task)
-                lines.append(f"- {time_str}: [ID:{task['id']}] {task['content']}")
+                link = f"[🔗](https://todoist.com/app/task/{task['id']})"
+                lines.append(f"- {time_str}: {link} {task['content']}")
             lines.append("")
 
         # Remaining due today
@@ -228,7 +231,8 @@ def run_morning_planning() -> str:
         if remaining:
             lines.append("### Also Due Today")
             for task in remaining[:5]:
-                lines.append(f"- [ID:{task['id']}] {task['content']}")
+                link = f"[🔗](https://todoist.com/app/task/{task['id']})"
+                lines.append(f"- {link} {task['content']}")
             lines.append("")
 
         # Coming this week
@@ -237,7 +241,8 @@ def run_morning_planning() -> str:
             lines.append("### Coming This Week")
             for task, days in upcoming[:5]:
                 day_name = (today + timedelta(days=days)).strftime("%A")
-                lines.append(f"- {day_name}: [ID:{task['id']}] {task['content']}")
+                link = f"[🔗](https://todoist.com/app/task/{task['id']})"
+                lines.append(f"- {day_name}: {link} {task['content']}")
             lines.append("")
 
         # Summary
