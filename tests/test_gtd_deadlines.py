@@ -1,8 +1,9 @@
 """Tests for GTD deadline scanning."""
 
 from datetime import date
+from unittest.mock import patch
 
-from rubber_duck.gtd.deadlines import _categorize_by_urgency
+from rubber_duck.gtd.deadlines import _categorize_by_urgency, scan_deadlines
 
 
 class TestCategorizeByUrgency:
@@ -84,3 +85,38 @@ class TestCategorizeByUrgency:
         assert result["summary"]["overdue"] == 1
         assert result["summary"]["due_today"] == 1
         assert result["summary"]["due_this_week"] == 1
+
+
+class TestScanDeadlines:
+    """Test the main scan_deadlines function."""
+
+    @patch("rubber_duck.gtd.deadlines._fetch_tasks")
+    @patch("rubber_duck.gtd.deadlines._fetch_projects")
+    def test_scan_deadlines_returns_structured_output(self, mock_projects, mock_tasks):
+        """scan_deadlines returns properly structured dict."""
+        mock_tasks.return_value = [
+            {"id": "1", "content": "Task", "due": {"date": "2026-01-03"}, "project_id": "p1"},
+        ]
+        mock_projects.return_value = {"p1": "Work"}
+
+        result = scan_deadlines()
+
+        assert "generated_at" in result
+        assert "overdue" in result
+        assert "due_today" in result
+        assert "due_this_week" in result
+        assert "summary" in result
+        # Project name should be resolved
+        assert result["overdue"][0]["project"] == "Work"
+
+    @patch("rubber_duck.gtd.deadlines._fetch_tasks")
+    @patch("rubber_duck.gtd.deadlines._fetch_projects")
+    def test_scan_deadlines_empty_when_no_tasks(self, mock_projects, mock_tasks):
+        """scan_deadlines handles empty task list."""
+        mock_tasks.return_value = []
+        mock_projects.return_value = {}
+
+        result = scan_deadlines()
+
+        assert result["overdue"] == []
+        assert result["summary"]["overdue"] == 0

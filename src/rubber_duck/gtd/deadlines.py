@@ -1,6 +1,9 @@
 """Deadline scanning for GTD workflows."""
 
-from datetime import date, datetime
+import os
+from datetime import UTC, date, datetime
+
+import requests
 
 
 def _categorize_by_urgency(tasks: list, today: date) -> dict:
@@ -71,9 +74,62 @@ def _categorize_by_urgency(tasks: list, today: date) -> dict:
     }
 
 
+def _fetch_tasks() -> list:
+    """Fetch all tasks from Todoist.
+
+    Returns:
+        List of task dicts with keys: id, content, due, project_id
+    """
+    api_key = os.environ.get("TODOIST_API_KEY")
+    if not api_key:
+        return []
+
+    response = requests.get(
+        "https://api.todoist.com/rest/v2/tasks",
+        headers={"Authorization": f"Bearer {api_key}"},
+        timeout=30,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+def _fetch_projects() -> dict:
+    """Fetch projects and return id->name mapping.
+
+    Returns:
+        Dict mapping project_id to project_name
+    """
+    api_key = os.environ.get("TODOIST_API_KEY")
+    if not api_key:
+        return {}
+
+    response = requests.get(
+        "https://api.todoist.com/rest/v2/projects",
+        headers={"Authorization": f"Bearer {api_key}"},
+        timeout=30,
+    )
+    response.raise_for_status()
+    return {p["id"]: p["name"] for p in response.json()}
+
+
 def scan_deadlines() -> dict:
     """Scan tasks for deadline urgency.
 
-    Returns dict with keys: overdue, due_today, due_this_week, summary
+    Returns:
+        Dict with overdue, due_today, due_this_week lists and summary.
+        Each task includes: id, content, project (name), and urgency-specific fields.
     """
-    raise NotImplementedError
+    tasks = _fetch_tasks()
+    projects = _fetch_projects()
+    today = date.today()
+
+    result = _categorize_by_urgency(tasks, today)
+
+    # Resolve project IDs to names
+    for category in ["overdue", "due_today", "due_this_week"]:
+        for item in result[category]:
+            item["project"] = projects.get(item["project"], item["project"])
+
+    result["generated_at"] = datetime.now(UTC).isoformat()
+
+    return result
