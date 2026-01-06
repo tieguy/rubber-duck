@@ -7,6 +7,8 @@ description: Run GTD morning planning to identify today's priorities. Use when u
 
 Run through today's commitments and identify the user's TOP priorities.
 
+**IMPORTANT: Use the current date/time from the system prompt ("Current time: ...") at the very top of your context. This is the authoritative timestamp. Ignore any dates in memory blocks or previous context that may be stale.**
+
 ## Checklist
 
 Copy this checklist into your response and check off each step AS YOU COMPLETE IT:
@@ -68,7 +70,7 @@ YOU MUST:
 Format the final output as:
 
 ```
-## Daily Plan - [Date]
+## Daily Plan - [Current Date from System Prompt]
 
 ### Calendar
 [List events or "No events scheduled"]
