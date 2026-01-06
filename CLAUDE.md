@@ -56,7 +56,6 @@ All tools execute locally in the Python process (not in Letta's sandbox). Define
 - **Memory**: `get_memory_blocks`, `set_memory_block`, `search_memory`, `archive_to_memory`, `read_journal`
 - **Todoist**: `query_todoist`, `create_todoist_task`, `complete_todoist_task`, `update_todoist_task`, `move_todoist_task`, `list_todoist_projects`
 - **Calendar**: `query_gcal`
-- **GTD workflows**: `run_morning_planning`, `run_weekly_review`
 
 **Key files:**
 ```
@@ -68,10 +67,10 @@ src/rubber_duck/agent/
 src/rubber_duck/integrations/
 ├── memory.py                   # Letta client, memory block management
 ├── todoist.py                  # Todoist API client
-├── gcal.py                     # Google Calendar integration
-└── tools/
-    ├── morning_planning.py     # GTD morning workflow
-    └── weekly_review.py        # GTD weekly review
+└── gcal.py                     # Google Calendar integration
+
+src/rubber_duck/cli/
+└── gtd.py                      # GTD CLI tools (deadlines, projects, waiting, etc.)
 ```
 
 **To add a new tool:**
@@ -82,12 +81,22 @@ src/rubber_duck/integrations/
 
 ### GTD Workflows
 
-The bot implements GTD (Getting Things Done) principles via workflow tools:
-- **Morning planning**: TOP 3 priorities, overdue alerts, today's schedule
-- **End-of-day review**: Slipped tasks, tomorrow's priorities, waiting-for items
-- **Weekly review**: Project health, deadline scan, follow-up timing
+The bot implements GTD (Getting Things Done) via Claude Code skills:
 
-Priority algorithm: urgency → feasibility → strategic value
+**Skills** (`.claude/skills/gtd/`):
+- `planning-daily` - Morning planning: TOP priorities, calendar, deadlines
+- `reviewing-weekly` - Weekly review: projects, waiting-for, someday-maybe
+
+**CLI Tools** (return JSON for skill consumption):
+```bash
+uv run python -m rubber_duck.cli.gtd scan-deadlines
+uv run python -m rubber_duck.cli.gtd check-projects
+uv run python -m rubber_duck.cli.gtd check-waiting
+uv run python -m rubber_duck.cli.gtd check-someday
+uv run python -m rubber_duck.cli.gtd calendar-today
+```
+
+Skills guide the procedure; CLI tools handle computation.
 
 ## Issue Tracking
 
