@@ -130,6 +130,7 @@ def scan_deadlines() -> dict:
         for item in result[category]:
             item["project"] = projects.get(item["project"], item["project"])
 
+    result["today"] = today.strftime("%A, %B %d, %Y")  # e.g., "Wednesday, January 07, 2026"
     result["generated_at"] = datetime.now(UTC).isoformat()
 
     return result

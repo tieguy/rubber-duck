@@ -7,7 +7,7 @@ description: Run GTD morning planning to identify today's priorities. Use when u
 
 Run through today's commitments and identify the user's TOP priorities.
 
-**IMPORTANT: Use the current date/time from the system prompt ("Current time: ...") at the very top of your context. This is the authoritative timestamp. Ignore any dates in memory blocks or previous context that may be stale.**
+**IMPORTANT: Use the current date/time from the system prompt ("Current time: ...") at the very top of your context. This is the authoritative timestamp. The scan-deadlines command also outputs a "today" field with the local date (e.g., "Wednesday, January 07, 2026") - use this to confirm the day. Ignore any dates in memory blocks or previous context that may be stale.**
 
 ## Checklist
 
