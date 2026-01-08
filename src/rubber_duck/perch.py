@@ -18,7 +18,8 @@ logger = logging.getLogger(__name__)
 
 # Constants (future: move to config)
 GAP_MINUTES = 30  # Min gap to consider conversation "ended"
-NOTIFY = True  # Send debug DM on each tick
+NOTIFY_ON_ACTION = True  # Send debug DM only when action is taken
+NOTIFY_ALL_TICKS = False  # Send debug DM on every tick (noisy, for debugging only)
 
 # Paths
 REPO_ROOT = Path(__file__).parent.parent.parent
@@ -156,9 +157,16 @@ async def _summarize_and_evaluate(entries: list[dict]) -> str | None:
         return None
 
 
-async def _send_debug_dm(bot, message: str) -> None:
-    """Send debug DM to owner."""
-    if not NOTIFY:
+async def _send_debug_dm(bot, message: str, *, is_action: bool = False) -> None:
+    """Send debug DM to owner.
+
+    Args:
+        bot: Discord bot instance
+        message: Message to send
+        is_action: True if this tick performed an action (not just a status check)
+    """
+    # Only notify if: action taken and NOTIFY_ON_ACTION, or NOTIFY_ALL_TICKS
+    if not (is_action and NOTIFY_ON_ACTION) and not NOTIFY_ALL_TICKS:
         return
 
     try:
@@ -232,15 +240,13 @@ async def perch_tick(bot) -> None:
             return
 
         if summary is None:
-            await _send_debug_dm(
-                bot,
-                f"🪺 Perch tick\n"
-                f"• Last activity: {int(gap_minutes)} min ago\n"
-                f"• Entries since last archive: {len(entries)}\n"
-                f"• Action: Skipped - trivial conversation"
+            # No action taken - only log, don't notify
+            logger.debug(
+                f"Perch tick: skipped trivial conversation "
+                f"({len(entries)} entries, {int(gap_minutes)} min ago)"
             )
         else:
-            # Archive the summary
+            # Archive the summary - this is an action
             result = archive_to_memory(summary)
             logger.info(f"Archived conversation summary: {result}")
 
@@ -249,7 +255,8 @@ async def perch_tick(bot) -> None:
                 f"🪺 Perch tick\n"
                 f"• Last activity: {int(gap_minutes)} min ago\n"
                 f"• Entries since last archive: {len(entries)}\n"
-                f"• Action: Archived conversation summary"
+                f"• Action: Archived conversation summary",
+                is_action=True,
             )
 
         # Update state
